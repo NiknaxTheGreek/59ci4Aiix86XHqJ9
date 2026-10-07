@@ -1,0 +1,49 @@
+name: MonReader full preservation backup
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/monreader_full_preservation_backup.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Fetch all refs and build preservation package
+        run: |
+          set -euo pipefail
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*' --prune-tags
+          mkdir -p /tmp/monreader-backup
+          git bundle create /tmp/monreader-backup/monreader_all_refs.bundle --all
+          git archive --format=zip --output=/tmp/monreader-backup/main_worktree.zip HEAD
+          git show-ref > /tmp/monreader-backup/refs.txt
+          git log --all --decorate --oneline --graph -n 5000 > /tmp/monreader-backup/history.txt
+          {
+            echo "repo=${GITHUB_REPOSITORY}"
+            echo "backup_commit=$(git rev-parse HEAD)"
+            echo "backup_branch=${GITHUB_REF_NAME}"
+            echo "created_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            sha256sum /tmp/monreader-backup/*
+          } > /tmp/monreader-backup/BACKUP_RECEIPT.txt
+          cd /tmp
+          zip -r monreader_repo_preservation_2026-10-07.zip monreader-backup
+
+      - name: Upload preservation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: monreader-repo-preservation-2026-10-07
+          path: /tmp/monreader_repo_preservation_2026-10-07.zip
+          compression-level: 0
+          retention-days: 30
+          if-no-files-found: error
