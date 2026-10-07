@@ -12,7 +12,7 @@ from zipfile import ZipFile
 import numpy as np
 from PIL import Image, ImageDraw
 
-from src.chroma_counterfactual_v2 import rec709_grayscale
+from src.grayscale_v2 import rec709_grayscale
 
 EXPECTED_ARCHIVE_BYTES = 939_921_132
 EXPECTED_ARCHIVE_SHA256 = "033dd76fa617ba9bcf16d8ca4dcc294a838a6956eae0740f3013e4663805008f"
