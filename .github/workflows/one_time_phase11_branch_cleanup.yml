@@ -1,0 +1,25 @@
+name: One-time Phase 11 obsolete branch cleanup
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/one_time_phase11_branch_cleanup.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Delete obsolete Phase 11 branch refs
+        run: |
+          set -euo pipefail
+          for branch in             phase/v2-11-secondary             phase/v2-11b-pretrained-segformer-full             phase/v2-11c-chroma             phase/v2-11c-chroma-eval             phase/v2-11d-deterministic-confirmation             phase/v2-11d-deterministic-confirmation-strict             phase/v2-11d-grayscale-domain             phase/v2-11d-s-repro-check
+          do
+            git push origin --delete "$branch" || true
+          done
