@@ -38,6 +38,10 @@ O, S, T and ST answer different generalization questions and are not a global mo
 
 ## Future work
 
-Naturalistic hand/arm removal is not part of the reported results and no hand/arm-removed corpus is used in the presented analysis. It remains a possible future extension, but reliable use would require solving large-occlusion reconstruction, document-structure preservation, hallucinated-content risk, residual/boundary artifacts, lack of ground truth under real occlusions, and robust QA without a trusted reference metric.
+Hands are part of the natural MonReader input domain, so hand/arm removal is **not required for deployment**. It was investigated only as a secondary analysis to test whether hand-related visual information influences model behaviour.
 
-See `reports/future_work/HAND_ARM_REMOVAL.md`. No hand/arm-removal performance results are presented.
+A promising pretrained removal approach did not translate into acceptable end-to-end reconstruction, and subsequent tuning did not resolve the core failure modes. The supplied dataset also provides no true ground truth beneath occlusions, and attempts to recover covered page pixels from related or nearby frames were not sufficiently complete or consistent for reliable use.
+
+Naturalistic hand/arm removal is therefore excluded from the reported results and no hand/arm-removed corpus is used in the presented analysis. It is retained only as a future-work topic because a defensible solution would require document-aware reconstruction, reliable recovery or validation of hidden content, and stronger QA than currently available.
+
+See `reports/future_work/HAND_ARM_REMOVAL.md`. No hand/arm-removal performance tables or transformed-corpus results are presented.
