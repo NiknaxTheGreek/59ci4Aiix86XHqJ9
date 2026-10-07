@@ -27,7 +27,7 @@ from sklearn.metrics import (
 from torch import nn
 from torch.utils.data import DataLoader
 
-from src.chroma_counterfactual_v2 import rec709_grayscale
+from src.grayscale_v2 import rec709_grayscale
 from src.scratch_v2 import (
     CANVAS_HEIGHT,
     CANVAS_WIDTH,
