@@ -1,0 +1,31 @@
+name: Validate staged mask30 bundle
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["phase/v2-11c-project4-iterative-calibration20"]
+    paths:
+      - ".github/workflows/validate_mask30_bundle.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate mask30 parts
+        run: |
+          set -euo pipefail
+          cat             results/secondary/project4_iterative_calibration_20/final_mask30_rle.part0             results/secondary/project4_iterative_calibration_20/final_mask30_rle.part1             results/secondary/project4_iterative_calibration_20/final_mask30_rle.part2             > /tmp/mask30.b64
+          python - <<'PY'
+          import base64,gzip,json
+          s=open('/tmp/mask30.b64').read().strip()
+          print('b64_len',len(s))
+          raw=gzip.decompress(base64.b64decode(s))
+          obj=json.loads(raw)
+          print('items',len(obj.get('items',[])))
+          print('first',obj['items'][0]['order'],obj['items'][0]['sample_id'],obj['items'][0]['height'],obj['items'][0]['width'])
+          print('last',obj['items'][-1]['order'],obj['items'][-1]['sample_id'],obj['items'][-1]['height'],obj['items'][-1]['width'])
+          PY

@@ -1,7 +1,7 @@
 project: Apziva Project 4 - MonReader
 reset_date: 2026-09-30
 primary_protocol: train_test_only_v2
-status: PHASE_10_RESNET18_VERIFIED
+status: PHASE_11B_PROJECT4_MULTIMETHOD_TIER1_RUNNING
 candidate_bank:
   candidates: 20
   sha256: a4bebfc6c21df01e9294dacccb26ba84602cb3800b20414ad1d51f6f343c3b12
@@ -32,9 +32,25 @@ resnet18:
   T: {f1: 0.8807017543859649, delta_vs_scratch: 0.00070175438596487}
   ST: {f1: 0.7195767195767195, delta_vs_scratch: 0.015576719576719578}
   any_video_group_delta_ci_excludes_zero: false
+secondary_project4_hand_removal:
+  protocol: docs/PROJECT4_MULTI_METHOD_BAKEOFF_PLAN.md
+  branch: phase/v2-11b-project4-multimethod-bakeoff
+  sample_size: 100
+  sample_balance: {flip: 50, notflip: 50}
+  sample_scope: ST_context_only
+  primary_test_images_used: 0
+  manual_visual_review_hard_gate: true
+  tier1_methods: [M01, M02, M03, M06, M07]
+  tier2_methods: [M04, M05, M08, M09]
+  tier1_workflow_run_id: 37209115981
+  tier1_status: RUNNING
+  scientific_pass: NOT_CLAIMED
+  next_gate: complete_tier1_then_manual_visual_review
 active_workflows_on_main: false
-next_gate: phase_11_controlled_secondary_analyses
+next_gate: project4_hand_removal_tier1_manual_visual_review
 notes:
   - ResNet18 is a fixed non-selection-bearing pretrained comparator.
   - No paired video/group F1 difference versus the frozen scratch champion excludes zero in O, S, T or ST.
   - Frozen scratch champions remain unchanged.
+  - Project 4 hand-removal is secondary/exploratory and cannot change Best O/S/T/ST.
+  - Automated image-quality metrics cannot override manual visual failure.

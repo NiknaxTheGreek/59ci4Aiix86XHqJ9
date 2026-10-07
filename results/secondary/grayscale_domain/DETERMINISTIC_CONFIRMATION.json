@@ -1,0 +1,92 @@
+{
+  "execution_contract": {
+    "MKL_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "ONEDNN_MAX_CPU_ISA": "AVX2",
+    "scientific_inputs_changed": false,
+    "training_code_changed": false
+  },
+  "regimes": {
+    "O": {
+      "checkpoint_sha256_exact_equal": true,
+      "execution_contract": {
+        "MKL_NUM_THREADS": "1",
+        "OMP_NUM_THREADS": "1",
+        "ONEDNN_MAX_CPU_ISA": "AVX2"
+      },
+      "fresh_accuracy": 0.9748743718592965,
+      "fresh_checkpoint_sha256": "9f4fec4ca6c9d94a6eecfed9de16365959527cb162399896cdd33b8e04cbc7cd",
+      "fresh_f1": 0.9734513274336283,
+      "fresh_predictions_sha256": "c24b5b91906644c8872b0c83e1e4292299116963b612b9ea3caa5969114a804d",
+      "predictions_sha256_exact_equal": true,
+      "published_accuracy": 0.9748743718592965,
+      "published_checkpoint_sha256": "9f4fec4ca6c9d94a6eecfed9de16365959527cb162399896cdd33b8e04cbc7cd",
+      "published_f1": 0.9734513274336283,
+      "published_predictions_sha256": "c24b5b91906644c8872b0c83e1e4292299116963b612b9ea3caa5969114a804d",
+      "regime": "O",
+      "status": "EXACT_MATCH",
+      "summary_exact_equal": true
+    },
+    "S": {
+      "checkpoint_sha256_exact_equal": false,
+      "execution_contract": {
+        "MKL_NUM_THREADS": "1",
+        "OMP_NUM_THREADS": "1",
+        "ONEDNN_MAX_CPU_ISA": "AVX2"
+      },
+      "fresh_accuracy": 0.7480519480519481,
+      "fresh_checkpoint_sha256": "c8352d5e6f2d3c1353cd2778d964478ff9096495ca496083d70a3eb4a8fc38d1",
+      "fresh_f1": 0.706060606060606,
+      "fresh_predictions_sha256": "c23b997afddf4a0561e066be12dc93c54a39f76efd983c7eaae9440bf772647e",
+      "predictions_sha256_exact_equal": false,
+      "published_accuracy": 0.7727272727272727,
+      "published_checkpoint_sha256": "e8c6aff269863cecca20ab618adfe049b2c383d75120414183faff97f23b60ae",
+      "published_f1": 0.7787610619469026,
+      "published_predictions_sha256": "4368d7dc029918f72e51b861928d03a11cfd22f44d4ed0903a562a8b4383d5ef",
+      "regime": "S",
+      "status": "MISMATCH_REVIEW_REQUIRED",
+      "summary_exact_equal": false
+    },
+    "ST": {
+      "checkpoint_sha256_exact_equal": false,
+      "execution_contract": {
+        "MKL_NUM_THREADS": "1",
+        "OMP_NUM_THREADS": "1",
+        "ONEDNN_MAX_CPU_ISA": "AVX2"
+      },
+      "fresh_accuracy": 0.8260869565217391,
+      "fresh_checkpoint_sha256": "a8cbc66faf1553aca9930066787bb7ded85f9ce54b5092b9fd7d41c9bb66c4ca",
+      "fresh_f1": 0.8372093023255814,
+      "fresh_predictions_sha256": "5d2677bbcee1795a24f0c9c0ffad510007427aee1873495714cd16e2b317a3cb",
+      "predictions_sha256_exact_equal": false,
+      "published_accuracy": 0.8260869565217391,
+      "published_checkpoint_sha256": "2821d7b6a019bee2a781820eab2196b88cc7a0536d49553e39aef8baf6b9d385",
+      "published_f1": 0.8372093023255814,
+      "published_predictions_sha256": "c1c8b0bb5a97a48343a15583b85bea0bc5d5b724a2ab40b4e22a96144c76768c",
+      "regime": "ST",
+      "status": "MISMATCH_REVIEW_REQUIRED",
+      "summary_exact_equal": false
+    },
+    "T": {
+      "checkpoint_sha256_exact_equal": false,
+      "execution_contract": {
+        "MKL_NUM_THREADS": "1",
+        "OMP_NUM_THREADS": "1",
+        "ONEDNN_MAX_CPU_ISA": "AVX2"
+      },
+      "fresh_accuracy": 0.8958333333333334,
+      "fresh_checkpoint_sha256": "fdd864c69f373a5f87d6f1b7fc75dcffd2f7d0891d2997976f985967ab614228",
+      "fresh_f1": 0.8857644991212654,
+      "fresh_predictions_sha256": "b0fd12d6433aba148c182e797184275eb8bb18f3d1f6822ad39143b1b09e8de6",
+      "predictions_sha256_exact_equal": false,
+      "published_accuracy": 0.9134615384615384,
+      "published_checkpoint_sha256": "859e391056ae9d84d03c148a870538af182562d49550b1c083315e6a6716b112",
+      "published_f1": 0.906896551724138,
+      "published_predictions_sha256": "e9bec7313fee589ac0faf83a3937096eba9662503ac846aeb2bbabe35d72de80",
+      "regime": "T",
+      "status": "MISMATCH_REVIEW_REQUIRED",
+      "summary_exact_equal": false
+    }
+  },
+  "status": "REVIEW_REQUIRED_DO_NOT_LOCK"
+}

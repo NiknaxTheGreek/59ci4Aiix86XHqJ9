@@ -1,0 +1,41 @@
+{
+  "status": "LOCKED_TENTATIVE_PENDING_LOCAL_RERUN",
+  "decision_date": "2026-10-07",
+  "metric": "F1",
+  "convention": "Use the newest fresh strict confirmation run directly. Do not average the published and fresh runs.",
+  "published_run_id": 37341043907,
+  "fresh_confirmation_run_id": 37502301919,
+  "authoritative_final_source": "Phase 12 manual local-PC/Jupyter rerun with W&B integration",
+  "exact_reproducibility_status": "O_EXACT__S_T_ST_NOT_BYTE_EXACT",
+  "regimes": {
+    "O": {
+      "candidate": "C14",
+      "published_f1": 0.9734513274336283,
+      "fresh_f1": 0.9734513274336283,
+      "current_reporting_f1": 0.9734513274336283,
+      "exact_match": true
+    },
+    "S": {
+      "candidate": "C18",
+      "published_f1": 0.7787610619469026,
+      "fresh_f1": 0.706060606060606,
+      "current_reporting_f1": 0.706060606060606,
+      "exact_match": false
+    },
+    "T": {
+      "candidate": "C06",
+      "published_f1": 0.906896551724138,
+      "fresh_f1": 0.8857644991212654,
+      "current_reporting_f1": 0.8857644991212654,
+      "exact_match": false
+    },
+    "ST": {
+      "candidate": "C07",
+      "published_f1": 0.8372093023255814,
+      "fresh_f1": 0.8372093023255814,
+      "current_reporting_f1": 0.8372093023255814,
+      "exact_match": false
+    }
+  },
+  "note": "These values are the locked Phase 11 GitHub-hosted reporting values only. They are tentative and will be overwritten by the authoritative local rerun."
+}

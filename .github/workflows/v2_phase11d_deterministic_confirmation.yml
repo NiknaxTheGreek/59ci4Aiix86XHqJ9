@@ -1,0 +1,296 @@
+name: MonReader V2 Phase 11D deterministic confirmation
+
+on:
+  push:
+    branches: ["phase/v2-11d-deterministic-confirmation"]
+    paths:
+      - ".github/workflows/v2_phase11d_deterministic_confirmation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  DATASET_FILE_ID: 1kq6_jqeOLnBPN5_8cpT6amto589kFqlI
+  DATASET_SHA256: 033dd76fa617ba9bcf16d8ca4dcc294a838a6956eae0740f3013e4663805008f
+  PYTHONPATH: "."
+  PYTHONUNBUFFERED: "1"
+  OMP_NUM_THREADS: "1"
+  MKL_NUM_THREADS: "1"
+  ONEDNN_MAX_CPU_ISA: "AVX2"
+  OPENBLAS_NUM_THREADS: "1"
+  NUMEXPR_NUM_THREADS: "1"
+
+jobs:
+  confirm:
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - regime: O
+            candidate: C14
+            membership: manifests/splits/O.csv
+            chroma_predictions: results/secondary/chroma_eval/O_predictions.csv
+          - regime: S
+            candidate: C18
+            membership: manifests/splits/S.csv
+            chroma_predictions: results/secondary/chroma_eval/S_predictions.csv
+          - regime: T
+            candidate: C06
+            membership: manifests/splits/T.csv
+            chroma_predictions: results/secondary/chroma_eval/T_predictions.csv
+          - regime: ST
+            candidate: C07
+            membership: manifests/splits/ST.csv
+            chroma_predictions: results/secondary/chroma_eval/ST_predictions.csv
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13.5"
+
+      - name: Install exact CPU runtime
+        run: |
+          set -euo pipefail
+          python -m pip install numpy==2.3.5 Pillow==12.3.0 scikit-learn==1.9.1
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu             torch==2.10.0 torchvision==0.25.0
+
+      - name: Record deterministic execution environment
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/deterministic-${{ matrix.regime }}
+          {
+            echo "regime=${{ matrix.regime }}"
+            echo "candidate=${{ matrix.candidate }}"
+            echo "ONEDNN_MAX_CPU_ISA=$ONEDNN_MAX_CPU_ISA"
+            echo "OMP_NUM_THREADS=$OMP_NUM_THREADS"
+            echo "MKL_NUM_THREADS=$MKL_NUM_THREADS"
+            echo "runner_arch=$RUNNER_ARCH"
+            uname -a
+            lscpu
+            python - <<'PY'
+          import platform, torch
+          print("platform", platform.platform())
+          print("torch", torch.__version__)
+          print("torch_num_threads_before_script", torch.get_num_threads())
+          print("mkldnn_available", torch.backends.mkldnn.is_available())
+          print("mkldnn_enabled", torch.backends.mkldnn.enabled)
+          PY
+          } | tee /tmp/deterministic-${{ matrix.regime }}/runner_environment.txt
+
+      - name: Download and verify authoritative archive
+        run: |
+          set -euo pipefail
+          python -m pip install gdown==5.2.0
+          rm -f /tmp/images.zip
+          for attempt in 1 2 3 4 5; do
+            if python -m gdown --continue "https://drive.google.com/uc?id=$DATASET_FILE_ID" --output /tmp/images.zip; then
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
+          printf '%s  %s\n' "$DATASET_SHA256" /tmp/images.zip | sha256sum --check
+          stat --printf='archive_bytes=%s\n' /tmp/images.zip
+
+      - name: Verify immutable scientific inputs
+        run: |
+          set -euo pipefail
+          printf '%s  %s\n' "$DATASET_SHA256" /tmp/images.zip | sha256sum --check
+          sha256sum             /tmp/images.zip             configs/MONREADER_FIXED_20_CONFIG_BANK.json             ${{ matrix.membership }}             scripts/train_evaluate_grayscale_domain_v2.py             src/scratch_v2.py             results/secondary/grayscale_domain/GRAYSCALE_FULL_CORPUS_MANIFEST.csv             ${{ matrix.chroma_predictions }}
+
+      - name: Run frozen ${{ matrix.regime }}/${{ matrix.candidate }} using exact proven S-audit strict wrapper
+        run: |
+          set -euo pipefail
+          OUT="/tmp/deterministic-${{ matrix.regime }}"
+          python - <<PY
+          import runpy, sys, torch
+          # Match the wrapper that produced bit-identical S/C18 replicas across different AMD EPYC hosts.
+          torch.set_num_threads(1)
+          torch.set_num_interop_threads(1)
+          sys.argv = [
+              "scripts.train_evaluate_grayscale_domain_v2",
+              "--regime", "${{ matrix.regime }}",
+              "--candidate-id", "${{ matrix.candidate }}",
+              "--archive", "/tmp/images.zip",
+              "--manifest", "manifests/datasets/DATA-001.csv",
+              "--membership", "${{ matrix.membership }}",
+              "--bank", "configs/MONREADER_FIXED_20_CONFIG_BANK.json",
+              "--audit-manifest", "results/secondary/grayscale_domain/GRAYSCALE_FULL_CORPUS_MANIFEST.csv",
+              "--testtime-gray-predictions", "${{ matrix.chroma_predictions }}",
+              "--output-dir", "$OUT",
+          ]
+          runpy.run_module("scripts.train_evaluate_grayscale_domain_v2", run_name="__main__")
+          PY
+
+      - name: Compare exact outputs with published Phase 11D result
+        run: |
+          set -euo pipefail
+          REGIME="${{ matrix.regime }}"
+          OUT="/tmp/deterministic-$REGIME"
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+
+          r=os.environ["REGIME"]
+          out=Path(f"/tmp/deterministic-{r}")
+          canonical=Path("results/secondary/grayscale_domain")
+
+          def sha(path):
+              h=hashlib.sha256()
+              with Path(path).open("rb") as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b""):
+                      h.update(chunk)
+              return h.hexdigest()
+
+          fresh=json.loads((out/f"{r}_summary.json").read_text())
+          ref=json.loads((canonical/f"{r}_summary.json").read_text())
+
+          pred_fresh=sha(out/f"{r}_predictions.csv")
+          pred_ref=sha(canonical/f"{r}_predictions.csv")
+
+          comparison={
+              "regime":r,
+              "status":"EXACT_MATCH" if (
+                  fresh == ref
+                  and pred_fresh == pred_ref
+                  and fresh["checkpoint_sha256"] == ref["checkpoint_sha256"]
+              ) else "MISMATCH_REVIEW_REQUIRED",
+              "summary_exact_equal": fresh == ref,
+              "predictions_sha256_exact_equal": pred_fresh == pred_ref,
+              "fresh_predictions_sha256":pred_fresh,
+              "published_predictions_sha256":pred_ref,
+              "checkpoint_sha256_exact_equal":fresh["checkpoint_sha256"] == ref["checkpoint_sha256"],
+              "fresh_checkpoint_sha256":fresh["checkpoint_sha256"],
+              "published_checkpoint_sha256":ref["checkpoint_sha256"],
+              "fresh_f1":fresh["metrics"]["grayscale_trained_grayscale_tested"]["f1"],
+              "published_f1":ref["metrics"]["grayscale_trained_grayscale_tested"]["f1"],
+              "fresh_accuracy":fresh["metrics"]["grayscale_trained_grayscale_tested"]["accuracy"],
+              "published_accuracy":ref["metrics"]["grayscale_trained_grayscale_tested"]["accuracy"],
+              "execution_contract":{
+                  "ONEDNN_MAX_CPU_ISA":os.environ.get("ONEDNN_MAX_CPU_ISA"),
+                  "OMP_NUM_THREADS":os.environ.get("OMP_NUM_THREADS"),
+                  "MKL_NUM_THREADS":os.environ.get("MKL_NUM_THREADS"),
+              }
+          }
+          (out/f"{r}_deterministic_comparison.json").write_text(
+              json.dumps(comparison,indent=2,sort_keys=True)+"\n"
+          )
+          print(json.dumps(comparison,indent=2,sort_keys=True))
+          PY
+        env:
+          REGIME: ${{ matrix.regime }}
+
+      - name: Upload deterministic confirmation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase11d-deterministic-${{ matrix.regime }}
+          path: /tmp/deterministic-${{ matrix.regime }}
+          compression-level: 1
+          retention-days: 90
+          if-no-files-found: error
+
+  aggregate:
+    needs: confirm
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all deterministic evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: phase11d-deterministic-*
+          path: /tmp/deterministic
+          merge-multiple: false
+
+      - name: Build lock decision report
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root=Path("/tmp/deterministic")
+          regimes=["O","S","T","ST"]
+          rows={}
+          for r in regimes:
+              p=root/f"phase11d-deterministic-{r}"/f"{r}_deterministic_comparison.json"
+              rows[r]=json.loads(p.read_text())
+
+          all_exact=all(v["status"]=="EXACT_MATCH" for v in rows.values())
+          status="PASS_CAN_LOCK_PHASE11D_GRAYSCALE" if all_exact else "REVIEW_REQUIRED_DO_NOT_LOCK"
+
+          combined={
+              "status":status,
+              "execution_contract":{
+                  "ONEDNN_MAX_CPU_ISA":"AVX2",
+                  "OMP_NUM_THREADS":"1",
+                  "MKL_NUM_THREADS":"1",
+                  "training_code_changed":False,
+                  "scientific_inputs_changed":False
+              },
+              "regimes":rows
+          }
+
+          out_json=Path("/tmp/DETERMINISTIC_CONFIRMATION.json")
+          out_json.write_text(json.dumps(combined,indent=2,sort_keys=True)+"\n")
+
+          md=[
+              "# Phase 11D deterministic confirmation",
+              "",
+              f"**Status: {status}**",
+              "",
+              "Confirmation reran the frozen O/C14, S/C18, T/C06 and ST/C07 grayscale-domain experiments with the same code, data, splits, configs, seeds, 20-epoch rule and threshold, while clamping the oneDNN CPU ISA to AVX2 to eliminate the hardware-dependent path identified in the S/C18 audit.",
+              "",
+              "| Regime | F1 fresh | F1 published | Summary exact | Predictions exact | Checkpoint exact |",
+              "|---|---:|---:|:---:|:---:|:---:|"
+          ]
+          for r in regimes:
+              v=rows[r]
+              md.append(
+                  f"| {r} | {v['fresh_f1']:.10f} | {v['published_f1']:.10f} | "
+                  f"{'YES' if v['summary_exact_equal'] else 'NO'} | "
+                  f"{'YES' if v['predictions_sha256_exact_equal'] else 'NO'} | "
+                  f"{'YES' if v['checkpoint_sha256_exact_equal'] else 'NO'} |"
+              )
+          md += [
+              "",
+              "No hyperparameter search, validation, early stopping, threshold tuning, candidate replacement, or primary-result reopening was performed.",
+              "",
+              "This confirmation is secondary reproducibility evidence only."
+          ]
+          Path("/tmp/DETERMINISTIC_CONFIRMATION.md").write_text("\n".join(md)+"\n")
+          print(json.dumps(combined,indent=2,sort_keys=True))
+          PY
+
+      - name: Publish deterministic confirmation evidence
+        run: |
+          set -euo pipefail
+          mkdir -p results/secondary/grayscale_domain reports/secondary
+          cp /tmp/DETERMINISTIC_CONFIRMATION.json results/secondary/grayscale_domain/DETERMINISTIC_CONFIRMATION.json
+          cp /tmp/DETERMINISTIC_CONFIRMATION.md reports/secondary/PHASE11D_DETERMINISTIC_CONFIRMATION.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add             results/secondary/grayscale_domain/DETERMINISTIC_CONFIRMATION.json             reports/secondary/PHASE11D_DETERMINISTIC_CONFIRMATION.md
+          git commit -m "Phase 11D: publish deterministic confirmation [skip ci]"
+          git push
+
+      - name: Upload combined deterministic confirmation
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase11d-deterministic-confirmation
+          path: |
+            /tmp/DETERMINISTIC_CONFIRMATION.json
+            /tmp/DETERMINISTIC_CONFIRMATION.md
+          retention-days: 90
+          if-no-files-found: error
