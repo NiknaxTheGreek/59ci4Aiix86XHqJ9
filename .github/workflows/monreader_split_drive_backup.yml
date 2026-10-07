@@ -1,0 +1,70 @@
+name: MonReader Split Drive Backup
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/monreader_split_drive_backup.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Build verified full repository bundle
+        run: |
+          set -euo pipefail
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*' --tags --force
+          git show-ref | sort > /tmp/MONREADER_ALL_REFS.txt
+          git log --all --oneline --decorate --graph > /tmp/MONREADER_ALL_HISTORY.txt
+          git bundle create /tmp/MONREADER_FULL_REPO_2026-10-07.bundle --all
+          git bundle verify /tmp/MONREADER_FULL_REPO_2026-10-07.bundle
+          sha256sum /tmp/MONREADER_FULL_REPO_2026-10-07.bundle > /tmp/MONREADER_FULL_REPO_2026-10-07.bundle.sha256
+          mkdir -p /tmp/parts
+          split -n 12 -d -a 2 /tmp/MONREADER_FULL_REPO_2026-10-07.bundle /tmp/parts/MONREADER_FULL_REPO_2026-10-07.bundle.part
+          ls -lh /tmp/parts
+          sha256sum /tmp/parts/* > /tmp/MONREADER_SPLIT_PARTS_SHA256.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MONREADER_BACKUP_META_2026-10-07
+          path: |
+            /tmp/MONREADER_FULL_REPO_2026-10-07.bundle.sha256
+            /tmp/MONREADER_SPLIT_PARTS_SHA256.txt
+            /tmp/MONREADER_ALL_REFS.txt
+            /tmp/MONREADER_ALL_HISTORY.txt
+          compression-level: 1
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with: {name: MONREADER_BACKUP_PART00, path: /tmp/parts/MONREADER_FULL_REPO_2026-10-07.bundle.part00, compression-level: 0, retention-days: 30}
+      - uses: actions/upload-artifact@v4
+        with: {name: MONREADER_BACKUP_PART01, path: /tmp/parts/MONREADER_FULL_REPO_2026-10-07.bundle.part01, compression-level: 0, retention-days: 30}
+      - uses: actions/upload-artifact@v4
+        with: {name: MONREADER_BACKUP_PART02, path: /tmp/parts/MONREADER_FULL_REPO_2026-10-07.bundle.part02, compression-level: 0, retention-days: 30}
+      - uses: actions/upload-artifact@v4
+        with: {name: MONREADER_BACKUP_PART03, path: /tmp/parts/MONREADER_FULL_REPO_2026-10-07.bundle.part03, compression-level: 0, retention-days: 30}
+      - uses: actions/upload-artifact@v4
+        with: {name: MONREADER_BACKUP_PART04, path: /tmp/parts/MONREADER_FULL_REPO_2026-10-07.bundle.part04, compression-level: 0, retention-days: 30}
+      - uses: actions/upload-artifact@v4
+        with: {name: MONREADER_BACKUP_PART05, path: /tmp/parts/MONREADER_FULL_REPO_2026-10-07.bundle.part05, compression-level: 0, retention-days: 30}
+      - uses: actions/upload-artifact@v4
+        with: {name: MONREADER_BACKUP_PART06, path: /tmp/parts/MONREADER_FULL_REPO_2026-10-07.bundle.part06, compression-level: 0, retention-days: 30}
+      - uses: actions/upload-artifact@v4
+        with: {name: MONREADER_BACKUP_PART07, path: /tmp/parts/MONREADER_FULL_REPO_2026-10-07.bundle.part07, compression-level: 0, retention-days: 30}
+      - uses: actions/upload-artifact@v4
+        with: {name: MONREADER_BACKUP_PART08, path: /tmp/parts/MONREADER_FULL_REPO_2026-10-07.bundle.part08, compression-level: 0, retention-days: 30}
+      - uses: actions/upload-artifact@v4
+        with: {name: MONREADER_BACKUP_PART09, path: /tmp/parts/MONREADER_FULL_REPO_2026-10-07.bundle.part09, compression-level: 0, retention-days: 30}
+      - uses: actions/upload-artifact@v4
+        with: {name: MONREADER_BACKUP_PART10, path: /tmp/parts/MONREADER_FULL_REPO_2026-10-07.bundle.part10, compression-level: 0, retention-days: 30}
+      - uses: actions/upload-artifact@v4
+        with: {name: MONREADER_BACKUP_PART11, path: /tmp/parts/MONREADER_FULL_REPO_2026-10-07.bundle.part11, compression-level: 0, retention-days: 30}
