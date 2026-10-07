@@ -34,4 +34,10 @@ O, S, T and ST answer different generalization questions and are not a global mo
 
 ## Next gate
 
-**Phase 11 — controlled secondary analyses.** These are explicitly post-selection and cannot change Best O/S/T/ST. Priority analyses include shortcut/hand-arm dependence, controlled augmentation, visual/data ablations, and temporal/video deployment diagnostics.
+**Phase 11 — controlled secondary analyses.** These are explicitly post-selection and cannot change Best O/S/T/ST. Priority analyses include controlled augmentation, visual/data ablations, shortcut sensitivity, and temporal/video deployment diagnostics.
+
+## Future work
+
+Naturalistic hand/arm removal is not part of the reported results and no hand/arm-removed corpus is used in the presented analysis. It remains a possible future extension, but reliable use would require solving large-occlusion reconstruction, document-structure preservation, hallucinated-content risk, residual/boundary artifacts, lack of ground truth under real occlusions, and robust QA without a trusted reference metric.
+
+See `reports/future_work/HAND_ARM_REMOVAL.md`. No hand/arm-removal performance results are presented.
