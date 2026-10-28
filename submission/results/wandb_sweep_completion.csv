@@ -1,0 +1,6 @@
+<PARSED TEXT FOR SHEET: 1 / 1 TABS
+TAB NAME: 13_wandb_sweep_completion.csv>index,regime,project,sweep_id,all_runs,finished_runs,failed_or_crashed,running_runs,other_states,excluded_oom,excluded_zero_f1,excluded_invalid_f1,QUALIFYING_RUNS,TARGET,TARGET_REACHED,best_run_id,best_val_f1
+0,O,monreader-scratch-O,5un86ik8,38,36,2,0,0,2,2,2,30,30,True,blalkdao,1.0
+1,S,monreader-scratch-S,shqsngip,37,37,0,0,0,5,2,0,30,30,True,flrngfjg,0.973913
+2,T,monreader-scratch-T,dtx09pfy,31,31,0,0,0,1,0,0,30,30,True,35w64j2p,0.986207
+3,ST,monreader-scratch-ST,p4yg10sb,35,35,0,0,0,3,2,0,30,30,True,b8czemqm,0.914798

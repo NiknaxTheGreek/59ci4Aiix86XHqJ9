@@ -1,0 +1,6 @@
+<PARSED TEXT FOR SHEET: 1 / 1 TABS
+TAB NAME: 12_scratch_generalization_summary.csv>index,regime,validation_macro_f1,test_macro_f1,validation_to_test_change,test_drop_relative_to_O
+0,O,0.9917,0.9899,-0.0017,0.0
+1,S,0.4066,0.44,0.0334,0.5499
+2,T,0.9368,0.8305,-0.1063,0.1594
+3,ST,0.8558,0.7906,-0.0652,0.1994

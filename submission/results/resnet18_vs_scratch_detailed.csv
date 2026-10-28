@@ -1,0 +1,6 @@
+<PARSED TEXT FOR SHEET: 1 / 1 TABS
+TAB NAME: 21_resnet18_vs_scratch_detailed.csv>index,regime,scratch_macro_f1,resnet18_macro_f1,delta_macro_f1,scratch_notflip_f1,resnet18_notflip_f1,delta_notflip_f1,scratch_flip_f1,resnet18_flip_f1,delta_flip_f1,scratch_roc_auc_flip,resnet18_roc_auc_flip,delta_roc_auc_flip,scratch_pr_auc_flip,resnet18_pr_auc_flip,delta_pr_auc_flip,scratch_mcc,resnet18_mcc,delta_mcc
+0,O,0.9899,0.995,0.005,0.9902,0.9951,0.0049,0.9897,0.9948,0.0051,0.9994,1.0,0.0006,0.9994,1.0,0.0005,0.9799,0.99,0.0101
+1,S,0.44,0.9584,0.5184,0.7347,0.9635,0.2288,0.1453,0.9533,0.8079,0.9519,0.9896,0.0377,0.9216,0.9896,0.068,0.2133,0.9168,0.7035
+2,T,0.8305,0.9091,0.0786,0.8271,0.9194,0.0923,0.8339,0.8989,0.065,0.89,0.987,0.097,0.917,0.9896,0.0726,0.6641,0.8334,0.1693
+3,ST,0.7906,0.8772,0.0867,0.8148,0.9067,0.0919,0.7664,0.8478,0.0815,0.8341,0.9197,0.0856,0.8005,0.9237,0.1232,0.5813,0.7812,0.1999

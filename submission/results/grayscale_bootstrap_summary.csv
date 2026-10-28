@@ -1,0 +1,4 @@
+<PARSED TEXT FOR SHEET: 1 / 1 TABS
+TAB NAME: 25_grayscale_bootstrap_summary.csv>index,regime,rgb_macro_f1,grayscale_macro_f1,delta_macro_f1_gray_minus_rgb,delta_balanced_accuracy,delta_mcc,ci_lower,ci_upper,magnitude_gate_ge_0_02,bootstrap_support,supporting_metrics_align,meaningful_color_effect_supported,resnet18_replication_required,authority_status
+0,O,0.989942,0.996647,0.006705,0.00661,0.013432,-0.001721,0.016819,False,False,True,False,False,HISTORICAL_NON_AUTHORITATIVE
+1,ST,0.790585,0.690066,-0.100519,-0.100721,-0.201053,-0.25908,0.035323,True,False,True,False,False,HISTORICAL_NON_AUTHORITATIVE

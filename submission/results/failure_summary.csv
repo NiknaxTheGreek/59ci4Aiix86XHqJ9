@@ -1,0 +1,6 @@
+<PARSED TEXT FOR SHEET: 1 / 1 TABS
+TAB NAME: 20_failure_summary.csv>index,regime,n_samples,n_correct,n_errors,error_rate,tn,fp,fn,tp,false_positive_rate_notflip,false_negative_rate_flip
+0,O,597,594,3,0.005025,307,0,3,287,0.0,0.010345
+1,S,610,585,25,0.040984,330,12,13,255,0.035088,0.048507
+2,T,301,274,27,0.089701,154,0,27,120,0.0,0.183673
+3,ST,121,107,14,0.115702,68,0,14,39,0.0,0.264151

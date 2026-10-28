@@ -1,0 +1,6 @@
+<PARSED TEXT FOR SHEET: 1 / 1 TABS
+TAB NAME: 17_final_error_summary.csv>index,regime,total_errors,error_rate,tn,fp,fn,tp,dominant_error_type,mean_error_confidence,median_error_confidence,mean_error_true_class_probability,high_confidence_error_share_ge_0_90
+0,O,3,0.005025,307,0,3,287,false_negative,0.782592,0.813609,0.217408,0.333333
+1,S,25,0.040984,330,12,13,255,false_negative,0.806825,0.863852,0.193175,0.32
+2,T,27,0.089701,154,0,27,120,false_negative,0.870143,0.933309,0.129857,0.518519
+3,ST,14,0.115702,68,0,14,39,false_negative,0.948652,0.987686,0.051348,0.785714

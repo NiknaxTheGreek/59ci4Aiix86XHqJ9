@@ -1,0 +1,10 @@
+<PARSED TEXT FOR SHEET: 1 / 1 TABS
+TAB NAME: 26_final_limitations.csv>index,limitation_id,limitation,consequence
+0,L01,"O, S, T, and ST are different frozen evaluation populations.","Differences between regime point estimates are descriptive robustness comparisons, not isolated causal effects."
+1,L02,The historical S split is source-video-disjoint but does not guarantee unseen physical environments.,Do not describe S as universal real-world environmental generalization.
+2,L03,Frames within a source video are correlated.,Source-video bootstrap uncertainty is primary; frame-level intervals are secondary diagnostics.
+3,L04,ST contains only 24 source videos and 121 held-out frames.,Its point estimate has materially wider source-video uncertainty and should not be over-interpreted.
+4,L05,Grad-CAM identifies gradient-associated spatial regions.,It does not establish causal feature importance or prove that highlighted image regions are the true physical basis of the decision.
+5,L06,Intermediate activation maps are channel-averaged feature magnitude summaries.,They are not class-specific and individual bright regions should not be given semantic labels.
+6,L07,Interpretability was evaluated on 21 deterministic representative cases rather than the complete image set.,Qualitative interpretability observations should not be reported as population-frequency estimates.
+7,L08,These notebooks belong to the historical pre-V2 MonReader methodology.,"They are non-authoritative for the current V2 protocol and must not alter V2 models, champions, metrics, or conclusions."

@@ -1,0 +1,6 @@
+<PARSED TEXT FOR SHEET: 1 / 1 TABS
+TAB NAME: 14_dataset_regime_summary.csv>index,regime,train_images,validation_images,context_unseen_early_images,test_images,total_images,unique_source_videos,test_source_videos,test_sources_also_in_development
+0,O,2152,240,0,597,2989,117,115,115
+1,S,2147,232,0,610,2989,117,24,0
+2,T,2387,301,0,301,2989,117,117,117
+3,ST,1904,475,489,121,2989,117,24,0

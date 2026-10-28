@@ -1,0 +1,6 @@
+<PARSED TEXT FOR SHEET: 1 / 1 TABS
+TAB NAME: 35_bootstrap_ci_comparison.csv>index,regime,point_estimate,frame_ci_lower,frame_ci_upper,frame_ci_width,source_video_ci_lower,source_video_ci_upper,source_video_ci_width
+0,O,0.994969,0.988256,1.0,0.011744,0.98623,1.0,0.01377
+1,S,0.958387,0.942118,0.97344,0.031323,0.908406,0.99377,0.085364
+2,T,0.90914,0.874861,0.939784,0.064923,0.861852,0.9467,0.084848
+3,ST,0.877246,0.811568,0.932553,0.120985,0.746912,0.971952,0.22504

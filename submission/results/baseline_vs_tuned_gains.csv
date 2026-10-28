@@ -1,0 +1,4 @@
+<PARSED TEXT FOR SHEET: 1 / 1 TABS
+TAB NAME: 32_baseline_vs_tuned_gains.csv>index,split,baseline_macro_f1,tuned_macro_f1,absolute_macro_f1_gain,relative_macro_f1_gain_pct,macro_f1_error_reduction_pct,baseline_accuracy,tuned_accuracy,accuracy_gain,baseline_balanced_accuracy,tuned_balanced_accuracy,balanced_accuracy_gain,baseline_roc_auc,tuned_roc_auc,roc_auc_gain,baseline_pr_auc,tuned_pr_auc,pr_auc_gain
+0,Validation,0.5735,0.9917,0.4182,72.9292,98.0458,0.6375,0.9917,0.3542,0.6282,0.9919,0.3637,0.8481,0.9999,0.1518,0.8793,0.9999,0.1205
+1,Held-out Test,0.5559,0.9899,0.4341,78.0848,97.7352,0.6265,0.9899,0.3635,0.6156,0.9899,0.3743,0.8204,0.9994,0.179,0.8495,0.9994,0.1499
