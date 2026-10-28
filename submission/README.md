@@ -1,46 +1,105 @@
-# Historical MonReader Notebook Submission
+# MonReader Historical Submission Package
 
-This directory contains the cleaned, submission-ready version of the original five-notebook MonReader analysis.
+This directory is the **submission-ready reconstruction of the original five-notebook MonReader analysis**.
 
-## Important status
+> **Authority boundary:** these notebooks document the historical pre-V2 workflow. The current V2 protocol on `main` remains scientifically authoritative.
 
-These notebooks are **historical pre-V2** and are retained for reproducibility. The current V2 analysis on `main` is authoritative.
+## What a reviewer gets
 
-## What was fixed
+- five notebooks with a clear narrative and no failed/debug detours;
+- portable repository-relative paths;
+- corrected historical scratch-winner identities;
+- committed CSV result snapshots;
+- verified figures;
+- final Grad-CAM heatmaps as normal repository assets;
+- optional W&B integration with no hard-coded account details;
+- a technical report and business recommendations at repository level.
 
-- machine-specific Windows paths removed;
-- W&B credentials/entity/project ownership externalized;
-- W&B sweep creation made opt-in;
-- stale/failed/debug cells removed from the narrative;
-- corrected final scratch winner identities retained;
-- verified tables committed as CSV snapshots;
-- all successful notebook figures embedded directly in the cleaned notebooks for reliable GitHub rendering;
-- Grad-CAM heatmaps displayed directly in Notebook 5;
-- conclusions and limitations placed after the evidence they interpret;
-- V2/historical authority boundary made explicit.
+## Recommended reading order
 
-## Run in report mode
+1. [01 — Data audit and historical splits](notebooks/01_data_and_splits.ipynb)
+2. [02 — Scratch CNN selection + W&B](notebooks/02_cnn_selection.ipynb)
+3. [03 — Model / color comparison](notebooks/03_model_comparison.ipynb)
+4. [04 — Generalization and stress testing](notebooks/04_generalization_and_stress_tests.ipynb)
+5. [05 — Final analysis and interpretability](notebooks/05_final_analysis.ipynb)
+
+Then read:
+
+- [Technical report](../reports/TECHNICAL_REPORT.md)
+- [Business recommendations](../reports/BUSINESS_RECOMMENDATIONS.md)
+
+## Two execution modes
+
+### 1. Report mode — default
+
+Install dependencies and open the notebooks:
 
 ```bash
 python -m pip install -r submission/requirements.txt
 jupyter notebook
 ```
 
-Open the notebooks in numerical order.
+Report mode does **not** require:
 
-The result snapshots are committed and the completed figures are embedded directly in the notebooks, so no W&B account or raw dataset is required to review the completed work.
+- the original dataset;
+- a GPU;
+- W&B credentials;
+- the original W&B workspace;
+- original sweep IDs;
+- a Windows-specific directory.
 
-## Optional W&B mode
+The completed values are committed under [`results/`](results/) and the key final figures under [`assets/figures/final/`](assets/figures/final/).
 
-Copy `.env.example` into your own environment and set:
+### 2. Reproduction / W&B mode — optional
+
+Copy `.env.example` to a local `.env` at the repository root and configure your own account.
 
 ```bash
 MONREADER_ENABLE_WANDB=1
-MONREADER_WANDB_PROJECT=your-project
-MONREADER_WANDB_ENTITY=your-entity
+MONREADER_WANDB_PROJECT=my-project
+MONREADER_WANDB_ENTITY=my-team
 WANDB_API_KEY=...
+WANDB_MODE=online
 ```
 
-Creating a new sweep is separately gated by `MONREADER_CREATE_NEW_SWEEP=1`.
+A reviewer cannot accidentally launch expensive work merely by running the notebook. New sweep creation and W&B-agent execution require independent gates:
 
-Never commit `.env` or a W&B API key.
+```bash
+MONREADER_CREATE_NEW_SWEEP=1
+MONREADER_RUN_WANDB_AGENT=1
+MONREADER_WANDB_AGENT_COUNT=1
+```
+
+Notebook 2 exposes the historical sweep configuration and a generic `run_agent(...)` hook. The actual training callable remains explicit rather than hidden inside the helper.
+
+## Verified historical headline results
+
+| Regime | ResNet18 Macro F1 | Source-video 95% CI |
+|---|---:|---:|
+| O | 0.994969 | [0.986128, 1.000000] |
+| S | 0.958387 | [0.909802, 0.993352] |
+| T | 0.909140 | [0.865657, 0.946739] |
+| ST | 0.877246 | [0.747988, 0.972281] |
+
+The historical tuned Scratch CNN held-out Macro F1 values were approximately 0.990, 0.440, 0.830, and 0.791 for O/S/T/ST respectively.
+
+## Interpretability
+
+Notebook 5 includes the actual saved Grad-CAM regime panels.
+
+![Grad-CAM O](assets/figures/final/gradcam_O_frozen_cases.jpg)
+
+![Grad-CAM ST](assets/figures/final/gradcam_ST_frozen_cases.jpg)
+
+Grad-CAM is diagnostic, not causal. The cases were frozen before visual inspection.
+
+## Integrity rules preserved
+
+The cleaned notebooks do not:
+
+- invent or regenerate historical values;
+- silently replace the corrected winners;
+- change the frozen 0.50 historical threshold;
+- use interpretability results for model selection;
+- confuse historical results with current V2 conclusions;
+- expose private W&B credentials.
