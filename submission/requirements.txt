@@ -9,3 +9,4 @@ Pillow>=10.0
 torch>=2.1
 torchvision>=0.16
 wandb>=0.16
+python-dotenv>=1.0
