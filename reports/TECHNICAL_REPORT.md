@@ -2,63 +2,67 @@
 
 ## Executive summary
 
-MonReader is a binary image-classification project for identifying whether a video frame depicts a page `flip` or `notflip`. The project evolved through two scientific phases: an earlier notebook-based workflow using explicit validation sets and Bayesian W&B sweeps, and a later V2 rebuild using a prospectively frozen train/test-only protocol.
+MonReader is a binary computer-vision project that classifies individual video frames as **`flip`** or **`notflip`**. The historical five-notebook analysis revealed the project’s central technical risk: **nominal frame-level performance can look almost perfect while robustness falls under source and temporal shift**.
 
-This report documents the **submission-ready historical notebook workflow** while preserving the rule that **current V2 results are authoritative**.
+The cleaned submission package preserves that historical experiment faithfully while separating it from the current V2 protocol, which is scientifically authoritative.
 
-The historical analysis produced a strong but important result: performance was near ceiling under the nominal supplied split, yet declined under source-safe and temporal stress. That finding motivated the stricter V2 rebuild and remains the most important methodological lesson of the project.
+The historical ResNet18 results were:
 
----
+| Regime | Macro F1 | Source-video 95% CI | Balanced accuracy | MCC |
+|---|---:|---:|---:|---:|
+| O | **0.994969** | [0.986128, 1.000000] | 0.994828 | 0.989989 |
+| S | **0.958387** | [0.909802, 0.993352] | 0.958202 | 0.916780 |
+| T | **0.909140** | [0.865657, 0.946739] | 0.908163 | 0.833399 |
+| ST | **0.877246** | [0.747988, 0.972281] | 0.867925 | 0.781163 |
 
-## 1. Problem statement
-
-The operational task is to classify an individual MonReader video frame as:
-
-- `flip`
-- `notflip`
-
-The main scientific risk is that neighbouring frames from the same source video are strongly correlated. A model can therefore appear extremely accurate if train and test sets contain near-neighbour frames or the same recording sources.
-
-The historical workflow explicitly created four evaluation regimes to expose this risk.
+![Historical ResNet18 robustness](../submission/assets/figures/final/final_resnet18_macro_f1_source_video_uncertainty.jpg)
 
 ---
 
-## 2. Data and source structure
+## 1. Problem and evaluation risk
 
-The historical audit contained **2,989 frames from 117 source videos**.
+The task is deceptively simple: identify whether a single frame contains a page-flip event.
 
-The four historical regimes were:
+The dataset, however, consists of frames extracted from videos. Adjacent frames from the same source video are correlated in content, lighting, camera viewpoint, user, background, and page state. A train/test split that mixes frames from the same videos can therefore overstate generalization.
 
-| Regime | Training | Validation | Context | Test | Test source videos |
-|---|---:|---:|---:|---:|---:|
-| O | 2,152 | 240 | 0 | 597 | 115 |
-| S | 2,147 | 232 | 0 | 610 | 24 |
-| T | 2,387 | 301 | 0 | 301 | 117 |
-| ST | 1,904 | 475 | 489 | 121 | 24 |
-
-O is source-joint: its test sources also occur in development. S and ST explicitly hold test sources out of development. T evaluates later frames from known videos. ST combines source and temporal stress.
-
-This means the regimes answer **different generalization questions** and their scores are descriptive robustness comparisons rather than causal effects.
+The historical workflow addressed this by defining four evaluation regimes rather than relying on one nominal split.
 
 ---
 
-## 3. Historical scratch-CNN selection
+## 2. Historical data and split design
 
-The historical scratch-CNN study used independent Bayesian W&B sweeps for O, S, T and ST. Each sweep targeted validation F1, with the following search space:
+The audited historical dataset contained **2,989 frames from 117 source videos**.
 
-- optimizer: Adam, AdamW, SGD or RMSprop;
-- learning rate: `1e-5` to `1e-2` log-uniform;
-- batch size: 8 to 256;
-- optional positive weight decay: `1e-6` to `1e-2`;
-- dropout: 0.0 to 0.5;
-- depth: 1 to 7 convolutional blocks;
-- starting filters: 8 to 64.
+| Regime | Train | Validation | Context | Test | Test source videos | Purpose |
+|---|---:|---:|---:|---:|---:|---|
+| O | 2,152 | 240 | 0 | 597 | 115 | supplied / source-joint benchmark |
+| S | 2,147 | 232 | 0 | 610 | 24 | held-out source-video stress |
+| T | 2,387 | 301 | 0 | 301 | 117 | later-frame stress |
+| ST | 1,904 | 475 | 489 | 121 | 24 | source + temporal stress |
 
-The final controller audit reached **30 qualifying completed runs per regime** after excluding invalid/OOM/zero-F1 attempts.
+These populations are not interchangeable. Cross-regime score changes are therefore **descriptive robustness comparisons**, not isolated causal effects.
 
-A later correction pass was important: stale W&B summary values changed the frozen winner identity for T and ST. The submission notebook therefore reports the **corrected frozen winners**, not the earlier stale sweep-summary winners.
+---
 
-Historical tuned-scratch held-out Macro F1 was:
+## 3. Historical scratch CNN and W&B selection
+
+The historical primary scratch model was tuned with independent Bayesian W&B sweeps for O/S/T/ST.
+
+The search space covered:
+
+- Adam / AdamW / SGD / RMSprop;
+- learning rate from `1e-5` to `1e-2`;
+- batch size 8–256;
+- optional positive weight decay `1e-6` to `1e-2`;
+- dropout 0.0–0.5;
+- depth 1–7 convolutional blocks;
+- starting filters 8–64.
+
+Each regime reached **30 qualifying completed runs** after explicit exclusion of invalid, OOM, or zero-F1 runs.
+
+A later audit corrected stale historical winner identities for T and ST. The submission notebooks use those corrected winners throughout.
+
+Historical tuned-scratch held-out Macro F1:
 
 | Regime | Macro F1 |
 |---|---:|
@@ -67,13 +71,25 @@ Historical tuned-scratch held-out Macro F1 was:
 | T | 0.8305 |
 | ST | 0.7906 |
 
-The source-safe S collapse was the clearest signal that O was not a sufficient robustness estimate.
+The S collapse was the clearest evidence that the nominal O result was not a sufficient robustness estimate.
+
+### Portable W&B implementation
+
+The submission package no longer assumes the original W&B account.
+
+- project and entity come from environment variables;
+- authentication comes from `WANDB_API_KEY` or local `wandb login`;
+- sweep creation is disabled unless `MONREADER_CREATE_NEW_SWEEP=1`;
+- agent execution is separately disabled unless `MONREADER_RUN_WANDB_AGENT=1`;
+- no sweep ID or credential is embedded in the notebooks.
+
+This makes the notebook reproducible for another user while keeping ordinary `Run All` behaviour safe.
 
 ---
 
-## 4. Historical ResNet18 comparison
+## 4. ResNet18 model-family comparison
 
-An ImageNet-pretrained ResNet18 was evaluated on the same frozen historical populations.
+The historical ImageNet-pretrained ResNet18 was evaluated on the same frozen populations.
 
 | Regime | Scratch Macro F1 | ResNet18 Macro F1 | Δ ResNet − Scratch |
 |---|---:|---:|---:|
@@ -82,26 +98,28 @@ An ImageNet-pretrained ResNet18 was evaluated on the same frozen historical popu
 | T | 0.8305 | 0.9091 | +0.0786 |
 | ST | 0.7906 | 0.8772 | +0.0867 |
 
-Historically, ResNet18 was substantially more robust under the difficult regimes, particularly S.
+![Historical Scratch vs ResNet18](../submission/assets/figures/final/final_scratch_vs_resnet18_macro_f1.jpg)
 
-This result is a **historical matched reference comparison**. It does not authorize changing the current V2 champions.
+The historical advantage of pretrained ResNet18 was small under O but large under source shift, especially S.
+
+This is a historical matched comparison only; it does not change the current V2 champions.
 
 ---
 
-## 5. Historical robustness and uncertainty
+## 5. Generalization and uncertainty
 
-The final historical ResNet18 results were:
+Source-video bootstrap intervals are the primary uncertainty measure because individual frames within one video are not independent.
 
-| Regime | Macro F1 | Source-video 95% CI | Balanced accuracy | MCC |
-|---|---:|---:|---:|---:|
-| O | 0.994969 | [0.986128, 1.000000] | 0.994828 | 0.989989 |
-| S | 0.958387 | [0.909802, 0.993352] | 0.958202 | 0.916780 |
-| T | 0.909140 | [0.865657, 0.946739] | 0.908163 | 0.833399 |
-| ST | 0.877246 | [0.747988, 0.972281] | 0.867925 | 0.781163 |
+ST has the widest interval because it contains only **24 independent test source videos and 121 frames**.
 
-Source-video bootstrap intervals are primary because individual frames from one video are correlated.
+The historical ordering O → S → T → ST is therefore best read as a robustness envelope:
 
-ST has the widest uncertainty because its test population contains only **24 source videos and 121 frames**.
+- O demonstrates near-ceiling nominal fit;
+- S tests unseen source videos;
+- T tests later frames of known videos;
+- ST combines both stresses.
+
+No cross-regime difference should be described as a clean causal effect.
 
 ---
 
@@ -116,9 +134,11 @@ Historical ResNet18 errors were:
 | T | 27 | 0.0897 | 0 | 27 | 0.519 |
 | ST | 14 | 0.1157 | 0 | 14 | 0.786 |
 
-False negatives dominate the frozen historical error pattern. In T and ST, many errors are highly confident, so these are not simply threshold-adjacent mistakes.
+![Historical error behaviour](../submission/assets/figures/final/final_error_rate_and_confident_error_share.jpg)
 
-The threshold was kept frozen at 0.50. Failure analysis was not allowed to trigger post-hoc threshold tuning.
+False negatives dominate the frozen historical error pattern. The high-confidence error share in T/ST shows that many failures are not merely cases hovering around the 0.50 threshold.
+
+The threshold remained frozen. Error analysis was not used for post-hoc tuning.
 
 ---
 
@@ -126,79 +146,84 @@ The threshold was kept frozen at 0.50. Failure analysis was not allowed to trigg
 
 ### Grad-CAM
 
-Grad-CAM was generated for **21 deterministic cases** chosen before visual inspection.
+Twenty-one representative cases were selected deterministically **before** image or heatmap inspection.
 
-- 21/21 Grad-CAM maps were generated;
-- 0 were degenerate;
-- every FP32 attribution forward retained the frozen historical class decision.
+- 21 Grad-CAM maps generated;
+- 0 degenerate maps;
+- all attribution forwards preserved the frozen class decision.
 
-The heatmaps are visible directly in `submission/notebooks/05_final_analysis.ipynb`.
+![Grad-CAM O](../submission/assets/figures/final/gradcam_O_frozen_cases.jpg)
 
-Grad-CAM is treated as a diagnostic association with the predicted-class score, **not as causal evidence**.
+![Grad-CAM S](../submission/assets/figures/final/gradcam_S_frozen_cases.jpg)
+
+![Grad-CAM T](../submission/assets/figures/final/gradcam_T_frozen_cases.jpg)
+
+![Grad-CAM ST](../submission/assets/figures/final/gradcam_ST_frozen_cases.jpg)
+
+Grad-CAM is interpreted as a spatial diagnostic associated with the predicted-class score. It does **not** prove that a highlighted region caused the decision.
 
 ### Intermediate activations
 
 Four fixed ResNet18 stages were inspected:
 
-- `layer1[-1]` → 56×56;
-- `layer2[-1]` → 28×28;
-- `layer3[-1]` → 14×14;
-- `layer4[-1]` → 7×7.
+- layer1[-1] → 56×56;
+- layer2[-1] → 28×28;
+- layer3[-1] → 14×14;
+- layer4[-1] → 7×7.
 
-Across 21 cases this produced **84 non-degenerate activation maps**. Mean absolute activation was used across channels, avoiding manual channel cherry-picking.
+Across 21 cases this produced **84 non-degenerate activation maps**. Channels were collapsed with mean absolute activation; no visually attractive channel was cherry-picked.
 
-These maps are class-agnostic feature-strength diagnostics and should not be assigned semantic meaning without additional evidence.
-
----
-
-## 8. Historical RGB/grayscale branch
-
-The completed Scratch CNN RGB-versus-grayscale branch did not satisfy the full predefined meaningful-effect gate. It is therefore treated as closed secondary evidence and does not justify new ResNet18 grayscale experiments.
+![Activation progression](../submission/assets/figures/final/final_intermediate_activation_progression.jpg)
 
 ---
 
-## 9. Reproducibility improvements in the submission package
+## 8. Historical color ablation
 
-The cleaned notebooks correct the major portability problems of the original working notebooks:
+The completed historical Scratch-CNN RGB-versus-grayscale branch did not satisfy the full predefined meaningful-effect gate.
 
-- no `C:\Users\...` paths;
-- no stored W&B credentials;
-- no hard-coded W&B entity;
-- no dependency on original sweep IDs for report rendering;
-- no accidental sweep creation on notebook execution;
-- no stale T/ST winner identity;
-- no failed debug cells in the logical narrative;
-- verified results and figures are committed as snapshots;
-- Grad-CAM heatmaps are displayed inline;
-- the historical/V2 authority boundary is explicit.
-
-The notebooks can therefore be reviewed in report mode immediately, while W&B remains available as an opt-in integration.
+It remains closed secondary evidence and does not justify new ResNet18 grayscale experiments.
 
 ---
 
-## 10. Current V2 status
+## 9. Reproducibility and repository design
 
-The current `main` branch V2 rebuild is scientifically authoritative.
+The submission notebooks were rewritten around three principles:
 
-Frozen V2 scratch champions:
+1. **Portable execution** — repository-relative paths and optional local dataset configuration.
+2. **Safe experiment integration** — W&B disabled by default, with independent creation/agent gates.
+3. **Frozen evidence presentation** — committed CSV snapshots and verified figure files allow the completed analysis to be reviewed without rerunning expensive historical experiments.
 
-| Regime | Champion | F1 |
-|---|---:|---:|
-| O | C14 | 0.9983 |
-| S | C18 | 0.8196 |
-| T | C06 | 0.8800 |
-| ST | C07 | 0.7040 |
-
-The fixed ResNet18 V2 comparator does not provide statistically decisive paired evidence for replacing those champions.
-
-Historical and V2 values must therefore remain separated.
+The notebooks also identify the exact snapshot file supporting each major result table.
 
 ---
 
-## 11. Technical conclusion
+## 10. Limitations
 
-The most defensible technical conclusion is not that one architecture universally “wins.” It is that **evaluation design dominates interpretation**.
+The historical analysis has important limits:
 
-A model that appears effectively perfect under a source-joint nominal split can lose substantial performance under unseen-source and later-frame conditions. For MonReader, source-aware and temporal evaluation are therefore mandatory before any production claim.
+- O/S/T/ST contain different frozen populations;
+- source-video disjointness is not identical to every conceivable physical-domain shift;
+- frame-level observations are correlated within videos;
+- ST has relatively few independent test sources;
+- Grad-CAM is associative, not causal;
+- activation maps are class-agnostic feature-magnitude summaries;
+- the 21 interpretability examples are representative diagnostics, not population-frequency estimates;
+- the entire notebook workflow is historical pre-V2 evidence.
 
-The historical notebooks demonstrate how that insight was discovered. The V2 rebuild turns the insight into a stricter prospective protocol.
+---
+
+## 11. Current V2 boundary
+
+The current V2 rebuild is authoritative. It uses a prospectively frozen train/test-only protocol and must not inherit adaptive decisions from the historical notebooks.
+
+The historical notebooks are useful because they document how the project discovered the generalization problem. V2 is the stricter protocol used for current scientific claims.
+
+---
+
+## Technical conclusion
+
+The most important technical result is not a single model score.
+
+It is that **evaluation design changes the interpretation of MonReader more than nominal accuracy alone suggests**. A model can appear effectively perfect when sources are familiar yet degrade under unseen-source and later-frame conditions.
+
+For any production-facing MonReader system, source-aware and temporal evaluation should therefore be treated as mandatory.
