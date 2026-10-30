@@ -26,7 +26,7 @@ The source identifier includes the class and zero-padded video number. Numeric i
 | T | 301 | 624 |
 | ST | 121 | 161 |
 
-The current five draft notebooks construct additional train/validation/test partitions dynamically, rather than exactly reproducing all original executed notebook splits.
+The refactored split constructor now preserves the supplied O testing partition and sorts source identifiers before seeded S/ST assignment. Its original held-out counts are independently checked against the archived manifest: O=597, S=610, T=301, ST=121. These checks establish the sample counts, not identical new model predictions. The later V2 environment-heldout split remains a separate historical design.
 
 **Rule:** Original figures and historical scores are reference evidence under their original split definitions. Do not attribute them to the V2 split or a newly reconstructed split. Newly executed metrics must identify the exact manifest and method that generated them. Preserve both provenance families until the final author review decides which should feature in the README.
 
@@ -67,3 +67,11 @@ These are **historical observations only** and must not be hard-coded as fresh m
 ## Release rules
 
 Do not update final-result language in the README until the five updated notebooks have been executed on the original dataset and checked. Maintain `main` unchanged. Keep all development on `proofread`; independently back up the completed project before merging and deleting the remaining branches.
+
+## Reconstruction checkpoint (pre-execution)
+
+- Five root-level notebooks now use the `updated_` prefix and import tracked `src/` modules.
+- Notebook 04 includes the drafted, runnable progressive T/ST analysis, while Notebook 05 includes the draft synthesis.
+- Original reporting tables remain accessible as read-only archived references under `submission/results/`.
+- Published figures have a layout-generation update; regenerated dataset-specific figure pixels require the original images and notebook execution.
+- The source and notebook static check is supplied in `scripts/check_static.py`; CI results must be confirmed separately.
