@@ -196,10 +196,12 @@ def run_progressive_temporal(manifest, settings, device, environment_map_path):
                 seed=settings['seed'],
             ), folder / 'checkpoint.pt')
             model.to(device)
+            inference_started = time.perf_counter()
             predictions = predict_frame_table(
                 model, future, settings, device, batch_size=16, imagenet=True
             ).merge(future[['sample_id','horizon_position','frame_position_percent']],
                     on='sample_id', validate='one_to_one')
+            inference_seconds = time.perf_counter() - inference_started
             predictions.to_csv(folder / 'future_predictions.csv', index=False)
             entire = performance(predictions)
 
@@ -226,6 +228,8 @@ def run_progressive_temporal(manifest, settings, device, environment_map_path):
                 matched_macro_f1=matched['macro_f1'],
                 matched_flip_recall=matched['flip_recall'],
                 checkpoint_selection=selected['selected_stage'],
+                inference_seconds=round(inference_seconds, 3),
+                end_to_end_frames_per_second=round(len(future) / max(inference_seconds, 1e-9), 2),
                 training_plus_evaluation_seconds=round(time.perf_counter()-started, 2),
             ))
 
