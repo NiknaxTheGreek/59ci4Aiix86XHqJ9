@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560" role="img" aria-label="Held-out Macro F1 comparison for Scratch CNN and Pretrained ResNet18 across Original, Source-safe, Temporal, and Source plus Temporal regimes.">
-<rect width="1000" height="560" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="610" viewBox="0 0 1000 610" role="img" aria-label="Held-out Macro F1 comparison for Scratch CNN and Pretrained ResNet18 across Original, Source-safe, Temporal, and Source plus Temporal regimes.">
+<rect width="1000" height="610" fill="white"/>
 <text x="500" y="40" font-size="25" font-family="Arial,Helvetica,sans-serif" text-anchor="middle" font-weight="600" fill="#17202a">Model Comparison Across the Four Evaluation Regimes</text>
 <g font-family="Arial,Helvetica,sans-serif"><line x1="92" x2="958" y1="455" y2="455" stroke="#e5e7eb" stroke-width="1"/>
 <text x="78" y="461" text-anchor="end" font-size="16" fill="#394150">0.0</text>
@@ -40,8 +40,9 @@
 <text x="872.75" y="118.5" text-anchor="middle" font-size="17" fill="#17202a">0.877</text>
 <text x="849.75" y="488" text-anchor="middle" font-size="19" fill="#111827">ST</text>
 <text x="849.75" y="512" text-anchor="middle" font-size="15" fill="#384354">Source + Temporal</text>
-<rect x="676" y="59" width="294" height="53" rx="4" fill="#fff" stroke="#d1d5db"/>
-<rect x="690" y="70" width="20" height="13" fill="#247CB8"/><text x="720" y="82" font-size="16" fill="#17202a">Scratch CNN</text>
-<rect x="690" y="89" width="20" height="13" fill="#F47A16"/><text x="720" y="102" font-size="16" fill="#17202a">Pretrained ResNet18</text>
-<text x="500" y="546" font-size="17" text-anchor="middle" fill="#374151">Evaluation regime</text>
-</g></svg>
+<rect x="279" y="546" width="545" height="40" rx="6" fill="#f8fafc" stroke="#e5e7eb"/>
+<rect x="299" y="560" width="20" height="13" fill="#247CB8"/>
+<text x="328" y="573" font-size="16" fill="#17202a">Scratch CNN</text>
+<rect x="516" y="560" width="20" height="13" fill="#F47A16"/>
+<text x="545" y="573" font-size="16" fill="#17202a">Pretrained ResNet18</text>
+</svg>
