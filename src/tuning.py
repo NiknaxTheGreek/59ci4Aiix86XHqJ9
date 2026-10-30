@@ -50,7 +50,8 @@ def tune_one_regime_wandb(split,regime,settings,device):
             except RuntimeError as exc:
                 rows.append(dict(attempt=state['attempts'],run_id=run.id,status='failed',reason=str(exc)[:300]))
                 if torch.cuda.is_available():torch.cuda.empty_cache()
-                raise
+                # OOM/failed attempts are logged but do not count towards 30 qualifying trials.
+                return
     while state['qualifying']<settings['qualifying_trials'] and state['attempts']<settings['qualifying_trials']*5:
         wandb.agent(sweep_id,function=do_train,count=1,project=project,entity=settings.get('wandb_entity'))
     if state['qualifying']<settings['qualifying_trials'] or state['model'] is None:
