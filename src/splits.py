@@ -7,14 +7,19 @@ def _finish(parts, regime):
     return df.sort_values('sample_id').reset_index(drop=True)
 
 def make_splits(manifest,seed=42):
-    # O: 72/8/20 randomized *individual frames*; no source disjointness requirement.
-    dev,test=train_test_split(manifest,test_size=.20,random_state=seed,stratify=manifest.label)
+    # O: original supplied train/test membership, with validation drawn solely from supplied training.
+    if 'supplied_split' not in manifest:
+        raise ValueError('supplied_split is required for the original evaluation regime')
+    dev=manifest.loc[manifest.supplied_split=='training'].copy()
+    test=manifest.loc[manifest.supplied_split=='testing'].copy()
+    if len(dev)==0 or len(test)==0:
+        raise ValueError('Original training/testing folders must contain images')
     train,val=train_test_split(dev,test_size=.10,random_state=seed,stratify=dev.label)
     three=[a.copy() for a in (train,val,test)]
     for a,r in zip(three,('train','validation','test')):a['role']=r
     O=_finish(three,'O')
     # S: source groups are the units assigned to train/validation/test.
-    sources=manifest[['source_key','label']].drop_duplicates().reset_index(drop=True)
+    sources=manifest[['source_key','label']].drop_duplicates().sort_values('source_key').reset_index(drop=True)
     dev_s,test_s=train_test_split(sources,test_size=.20,random_state=seed,stratify=sources.label)
     train_s,val_s=train_test_split(dev_s,test_size=.10,random_state=seed,stratify=dev_s.label)
     mapping={str(k):role for tab,role in [(train_s,'train'),(val_s,'validation'),(test_s,'test')] for k in tab.source_key}
