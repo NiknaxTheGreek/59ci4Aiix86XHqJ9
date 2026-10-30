@@ -10,3 +10,10 @@ outputs/*
 !outputs/baselines/
 !outputs/baselines/**
 wandb/
+
+# Fresh notebook executions
+/generated/
+*.pt
+*.pth
+*.onnx
+*.log
