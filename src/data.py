@@ -19,7 +19,7 @@ def discover_manifest(raw):
         # Keep the zero-padded video identifier as it appears in the filename.
         sid=hashlib.sha256(rel.encode()).hexdigest()[:16]
         rows.append(dict(sample_id=sid,relative_path=rel,path=str(p.resolve()),label=label,
-                         target=CLASS_TO_Y[label],supplied_split=p.relative_to(raw).parts[0].lower(),video_id=video,environment_id=video,
+                         target=CLASS_TO_Y[label],supplied_split=next((part.lower() for part in p.relative_to(raw).parts if part.lower() in ('training','testing')),None),video_id=video,environment_id=video,
                          frame_number=frame,source_key=f'{label}::{video}'))
     if bad:raise ValueError('Could not infer label/video/frame for these files (first 10): '+str(bad[:10]))
     df=pd.DataFrame(rows).sort_values('relative_path').reset_index(drop=True)
