@@ -41,7 +41,7 @@ Testing was performed under four complementary conditions: randomly assigned fra
 
 The figure illustrates what changes between the four regimes, using **real MonReader frames**. It illustrates the design rather than claiming that the particular displayed images prove an exact split assignment.
 
-<img src="figures/evaluation_regime_examples.jpg" alt="Examples of four evaluation regimes" width="670">
+<img src="figures/evaluation_regime_examples.jpg" alt="Examples of four evaluation regimes" width="620">
 
 ### Model Comparison and Key Results
 
@@ -58,7 +58,7 @@ ResNet18 outperformed the Scratch CNN across all four regimes. The contrast was 
 
 ResNet18 itself declined from **0.995 in O to 0.877 in ST**. A near-perfect result under randomly mixed frames therefore did not translate into equally strong performance when both source identity and frame chronology changed.
 
-<img src="figures/model_comparison.png" alt="Model comparison across evaluation regimes" width="670">
+<img src="figures/model_comparison.svg" alt="Model comparison across evaluation regimes" width="670">
 
 ## Hyperparameter Optimization
 
@@ -107,7 +107,7 @@ Although grayscale performed slightly better in **O** and worse in **ST**, the r
 
 The image pairs below show the **same held-out `flip` and `notflip` frames before and after grayscale conversion**.
 
-<img src="figures/rgb_vs_grayscale_examples.png" alt="RGB and grayscale examples" width="670">
+<img src="figures/rgb_vs_grayscale_examples.png" alt="RGB and grayscale examples" width="440">
 
 ## Grad-CAM and Interpretability
 
@@ -115,7 +115,7 @@ Grad-CAM was applied to the **ImageNet-pretrained ResNet18** to examine which im
 
 A fixed set of **21 cases** was chosen before visual inspection to cover confident correct predictions, borderline decisions, and errors across O, S, T, and ST. The clean **4 × 4 matrix** presents **16 representative overlays**: rows correspond to O/S/T/ST and columns to correct `notflip`, correct `flip`, high-confidence error, and borderline error. The remaining selected cases belong to the complete 21-case analysis.
 
-<img src="figures/resnet18_gradcam_4x4.jpg" alt="ResNet18 Grad-CAM examples" width="670">
+<img src="figures/resnet18_gradcam_4x4.jpg" alt="ResNet18 Grad-CAM examples" width="520">
 
 Across the selected cases:
 
