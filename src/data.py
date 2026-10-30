@@ -77,3 +77,19 @@ class FrameDataset(Dataset):
 
 def make_loader(table,settings,batch_size=16,shuffle=False,gray=False,imagenet=False):
     return DataLoader(FrameDataset(table,settings['image_size'],gray,imagenet),batch_size=min(int(batch_size),len(table)),shuffle=shuffle,num_workers=0,pin_memory=False)
+
+def read_archived_result_table(path):
+    """Read a preserved historical CSV, including the archive's sheet-prefixed exports.
+
+    This is a provenance viewer, NOT a recomputation of historical test metrics.
+    """
+    from io import StringIO
+    text=Path(path).read_text(encoding='utf-8')
+    if text.startswith('<PARSED TEXT FOR SHEET'):
+        lines=text.splitlines()
+        lines=lines[1:]
+        if not lines or '>' not in lines[0]:
+            raise ValueError('Malformed archived CSV sheet prefix')
+        lines[0]=lines[0].split('>',1)[1]
+        text='\n'.join(lines)
+    return pd.read_csv(StringIO(text))
