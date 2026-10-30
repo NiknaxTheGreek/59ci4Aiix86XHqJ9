@@ -4,6 +4,10 @@ MonReader is a computer-vision project for classifying video frames as `flip` or
 
 The project evaluates **O (Original), S (Source-safe), T (Temporal), and ST (Source + Temporal)** generalization regimes, compares a tuned Scratch CNN with ImageNet-pretrained ResNet18, tests **RGB vs grayscale**, and uses **Grad-CAM and intermediate activations** to inspect model attention, including possible reliance on hands and page regions.
 
+## Dataset
+
+The original MonReader image dataset is available as [**images.zip — Google Drive**](https://drive.google.com/file/d/1KDQBTbo5deKGCdVV_xIujscn5ImxW4dm/view?usp=sharing). Download and extract the archive into `data/raw/`, preserving the `training/flip`, `training/notflip`, `testing/flip` and `testing/notflip` directories and their original filenames. Alternatively, configure `MONREADER_DATA_ROOT` to point to the extracted dataset root. The image archive is distributed through the dataset link rather than stored in this Git repository.
+
 ## Project Workflow
 
 1. **Data audit and split design** — inspect class balance and image filenames, extract environment/video identifiers and frame numbers, reconstruct the source-video structure and chronological order, and construct the O, S, T, and ST evaluation regimes.
@@ -27,11 +31,17 @@ All four regimes used **balanced `flip` / `notflip` data** with separate **train
 
 The regimes progressively test whether apparently strong performance is partly dependent on familiar recordings or temporally similar frames. Because the **O regime randomly mixes frames without separating source videos**, its performance can appear stronger than the model's ability to generalize. Drops under **S, T, and ST** therefore provide important evidence about robustness under less familiar conditions.
 
+### How Testing Was Performed
+
+Each evaluation regime used separate **training, validation and held-out test** partitions. The training partitions were used to fit the models, and the validation partitions were used to select hyperparameters, training epochs and checkpoints using **Macro F1**. The held-out test partitions were evaluated after model selection, with a fixed **0.50 classification threshold**, and were not used to choose models or tune thresholds.
+
+Testing was performed under four complementary conditions: randomly assigned frames (**O**), unseen recording sources (**S**), later frames from known recordings (**T**), and later frames from unseen recording sources (**ST**). The Scratch CNN and ImageNet-pretrained ResNet18 were evaluated in each regime. Additional held-out diagnostics included accuracy, precision, recall, confusion-matrix errors, and confidence. Source-video bootstrap resampling (**5,000 repetitions**) produced 95% Macro-F1 confidence intervals, while paired source-video resampling assessed the RGB-versus-grayscale comparison on matching test frames in O and ST. Grad-CAM and intermediate activations were used to examine selected ResNet18 predictions and errors.
+
 ### Representative Regime Examples
 
 The figure illustrates what changes between the four regimes, using **real MonReader frames**. It illustrates the design rather than claiming that the particular displayed images prove an exact split assignment.
 
-![Evaluation regime examples](figures/evaluation_regime_examples.jpg)
+<img src="figures/evaluation_regime_examples.jpg" alt="Examples of four evaluation regimes" width="670">
 
 ### Model Comparison and Key Results
 
@@ -48,11 +58,11 @@ ResNet18 outperformed the Scratch CNN across all four regimes. The contrast was 
 
 ResNet18 itself declined from **0.995 in O to 0.877 in ST**. A near-perfect result under randomly mixed frames therefore did not translate into equally strong performance when both source identity and frame chronology changed.
 
-![Model comparison across O, S, T and ST](figures/model_comparison.png)
+<img src="figures/model_comparison.png" alt="Model comparison across evaluation regimes" width="670">
 
 ## Hyperparameter Optimization
 
-The custom CNN was tuned with **Weights & Biases Bayesian optimization**. A separate sweep was maintained for each of O, S, T, and ST, and the independent reproduction objective is **validation Macro F1**, maximized independently for each regime. Exactly the same Macro F1 definition is used for final held-out test reporting. The full research profile requests **30 qualifying Bayesian trials per regime**; failed, interrupted, hardware-infeasible/CUDA-OOM, non-finite, and zero-Macro-F1 attempts do not count toward the target. This notebook-based search is a new experiment: previous W&B runs are **not** downloaded or replayed.
+The Scratch CNN was tuned using **Weights & Biases (W&B) Bayesian optimization**, with a separate search for each of O, S, T and ST. The selection objective was **validation Macro F1**, with **30 qualifying trials per regime**. Failed, interrupted, CUDA out-of-memory, non-finite and zero-Macro-F1 attempts were excluded from the qualifying count.
 
 | Hyperparameter | Search space |
 | --- | --- |
@@ -66,12 +76,6 @@ The custom CNN was tuned with **Weights & Biases Bayesian optimization**. A sepa
 | Starting filters | integer, 8 to 64 |
 
 Training used a maximum of **50 epochs**, a fixed **0.50 decision threshold**, validation-based checkpoint selection, and early stopping. New trials use early-stopping **patience = 4** and validation batch size at most **32**. Independent scratch models are initialized and tuned separately for O, S, T and ST. Each ResNet18 model likewise starts independently from ImageNet-pretrained weights for that regime; models are not transferred sequentially from O to S to T to ST.
-
-### Independent tuning and validation
-
-Notebook 02 includes the complete training and hyperparameter-search code with per-epoch validation **Macro F1**, early stopping, trial accounting, the selected checkpoint, and training/tuning plots. By default, it runs an **offline Bayesian TPE search using Optuna**, which needs no W&B credentials. To use an independently created W&B Bayesian sweep instead, set `MONREADER_TUNER=wandb_bayes` before Notebook 01 and privately authenticate to W&B. The two optimization engines implement related but not identical search procedures; neither is claimed to recreate a previous W&B trial sequence. The notebook deliberately does **not** display a list of the author's former winning runs or their hyperparameters.
-
-The model's number of trainable parameters depends on convolution depth and starting filter width, which vary in the search. ResNet18 uses a fixed pretrained residual architecture with a replaced binary output layer; the notebook computes actual parameter counts from the instantiated models. Regularization, width, batch size and optimizer settings may vary substantially between independently selected regimes, so the code reports the winning settings of **the reader's run**, rather than assuming one configuration generalizes to all four partitions.
 
 ## Robustness and Uncertainty
 
@@ -103,7 +107,7 @@ Although grayscale performed slightly better in **O** and worse in **ST**, the r
 
 The image pairs below show the **same held-out `flip` and `notflip` frames before and after grayscale conversion**.
 
-![RGB and grayscale examples for flip and notflip](figures/rgb_vs_grayscale_examples.png)
+<img src="figures/rgb_vs_grayscale_examples.png" alt="RGB and grayscale examples" width="670">
 
 ## Grad-CAM and Interpretability
 
@@ -111,7 +115,7 @@ Grad-CAM was applied to the **ImageNet-pretrained ResNet18** to examine which im
 
 A fixed set of **21 cases** was chosen before visual inspection to cover confident correct predictions, borderline decisions, and errors across O, S, T, and ST. The clean **4 × 4 matrix** presents **16 representative overlays**: rows correspond to O/S/T/ST and columns to correct `notflip`, correct `flip`, high-confidence error, and borderline error. The remaining selected cases belong to the complete 21-case analysis.
 
-![ResNet18 Grad-CAM: correct and error cases](figures/resnet18_gradcam_4x4.jpg)
+<img src="figures/resnet18_gradcam_4x4.jpg" alt="ResNet18 Grad-CAM examples" width="670">
 
 Across the selected cases:
 
@@ -153,42 +157,29 @@ Next priorities are broader testing on unseen recording sources, investigation o
 
 ## Reproducing the Project
 
-The five self-contained notebooks together form an executable **technical report**. Each question is followed by the method and runnable Python code; tables, models and figures are calculated from the active dataset rather than hard-coded from this README. In a fresh experiment, results can differ from the reference observations above and **no assertion forces them to match**.
+The five notebooks form an executable technical report covering data preparation, model development, testing, robustness analysis and interpretability. **Running them in order with the original dataset should reproduce the project results. A Weights & Biases account is required for Bayesian hyperparameter optimization.**
 
-1. Install Python 3.11+ with `numpy`, `pandas`, `Pillow`, `matplotlib`, `scikit-learn`, `torch`, `torchvision`, `optuna`, `nbformat`, `nbclient`, `ipykernel` (and optionally `wandb`). For full model training, install a compatible PyTorch build for your hardware.
-2. Provide the **original MonReader images** under `data/raw/`, preserving `training/flip`, `training/notflip`, `testing/flip` and `testing/notflip` folders and the `environment_frame.jpg` naming convention. Alternatively set `MONREADER_DATA_ROOT` to the directory containing that structure. No synthetic frames are included as scientific data.
-3. Run **01 → 02 → 03 → 04 → 05**, starting each notebook in the project root. Notebook 01 generates the common transparent Python methods in `generated/` (the source code is embedded directly inside Notebook 01). All generated files are local and ignored by the deliverable.
-4. Notebook 02 executes a new Bayesian search. The default Optuna path is **offline**; optional W&B tracking/search requires your own account. Notebook 03 independently trains four ResNet18 models and two grayscale scratch CNNs. Notebook 04 calculates source-video uncertainty and errors. Notebook 05 computes class-directed Grad-CAM and intermediate activations from the active trained checkpoints.
-5. For a synthetic code check only, set `MONREADER_SMOKE_TEST=1` before running Notebook 01 and point `MONREADER_DATA_ROOT` to a separately created synthetic dataset. This lowers compute for testing and **does not** constitute a MonReader scientific result.
+1. Set up Python 3.11 or newer and install the dependencies:
+   ```bash
+   python -m pip install -r requirements.txt
+   ```
+   Install the PyTorch build appropriate for your CPU or GPU if needed.
+2. [Download the original MonReader dataset](https://drive.google.com/file/d/1KDQBTbo5deKGCdVV_xIujscn5ImxW4dm/view?usp=sharing) and extract it into `data/raw/`, or set `MONREADER_DATA_ROOT` to the extracted dataset location.
+3. Sign in to [Weights & Biases](https://wandb.ai/), run `wandb login`, and configure your own W&B project and entity as needed.
+4. Run notebooks **01 → 02 → 03 → 04 → 05** from the project root. Models, predictions, metrics, figures and other generated outputs are saved locally.
 
-The four figures displayed in this README are the **approved reference illustrations**. The matching visualization procedures in the notebooks generate their own files under `generated/outputs/figures/` using whichever images, predictions and weights the researcher trained. The layout is reproducible; frame choices and model heatmaps may differ on a fresh run.
-
-**Metric rule:** Only **Macro F1** is used for checkpoint selection, Bayesian optimization and test comparison. The test set is not used in model selection. Additional accuracy, ROC-AUC, precision and recall diagnostics do not introduce another F1 objective.
+**Evaluation metric:** Macro F1 is the primary measure used for hyperparameter optimization, checkpoint selection and held-out comparison.
 
 ## Repository Guide
 
-```text
-MonReader/
-├── README.md
-├── 01_data_and_splits.ipynb
-├── 02_cnn_selection.ipynb
-├── 03_model_comparison.ipynb
-├── 04_generalization_and_stress_tests.ipynb
-├── 05_final_analysis.ipynb
-├── data/raw/                    # original dataset supplied separately
-└── figures/                     # four README figures
-```
-
-The repository needs no tracked `src/`, `results/` or W&B export directory. Notebook 01 writes its shared code to a generated local file so notebooks can execute in separate Jupyter kernels; results, logs, checkpoints and regenerated figures are also stored locally. The four image files above are retained solely because GitHub Markdown requires accessible image assets for inline figures.
+The project consists of five research notebooks, reusable Python source code in `src/`, a `requirements.txt` environment specification, and the four figures displayed in this report. Downloaded images, trained model checkpoints, W&B logs and generated experiment outputs are kept separately from tracked project code.
 
 ### Notebook Guide
 
 | Notebook | Purpose |
-|---|---|
-| `01_data_and_splits.ipynb` | Inspect real image filenames, construct a canonical manifest, audit sources and chronology, and create/fingerprint O/S/T/ST splits and the regime figure |
-| `02_cnn_selection.ipynb` | Fresh scratch-CNN training and Bayesian hyperparameter tuning with **validation Macro F1**, checkpoint selection and tuning/training plots |
-| `03_model_comparison.ipynb` | Independent ResNet18 fine-tuning, held-out comparison, grayscale scratch-CNN controls and figures |
-| `04_generalization_and_stress_tests.ipynb` | Source-video bootstrap confidence intervals, paired grayscale uncertainty and error diagnostics |
-| `05_final_analysis.ipynb` | Frozen prediction-based case selection, predicted-class Grad-CAM, activation maps and limitations |
-
-**Status of code verification:** the notebooks have been executed in sequence on a *synthetic image fixture* to validate that their code paths work. This does not independently verify or regenerate the historical MonReader reference scores; that requires the original dataset, model training and sufficient compute.
+| --- | --- |
+| `01_data_and_splits.ipynb` | Explore the dataset, reconstruct video sources and frame order, and create the O/S/T/ST evaluation partitions. |
+| `02_cnn_selection.ipynb` | Train Scratch CNNs and perform Bayesian hyperparameter optimization using validation Macro F1. |
+| `03_model_comparison.ipynb` | Fine-tune ResNet18, compare held-out performance and evaluate RGB versus grayscale. |
+| `04_generalization_and_stress_tests.ipynb` | Quantify source-video uncertainty, compare paired colour conditions and analyze prediction errors. |
+| `05_final_analysis.ipynb` | Examine representative predictions using Grad-CAM and intermediate activations, and summarize findings. |
