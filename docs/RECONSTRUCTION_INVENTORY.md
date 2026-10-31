@@ -40,9 +40,9 @@ These are **historical observations only** and must not be hard-coded as fresh m
 
 ## Architecture and reproducibility findings
 
-1. Notebook 01 currently writes approximately 43 KB of Python source into `generated/monreader_methods.py` via `%%writefile`; notebooks 02–05 then import that transient module. Move the reusable implementation into tracked `src/` modules.
-2. The current scratch-CNN notebook supports an Optuna path even though the approved research workflow is W&B Bayesian tuning. Make W&B the explicit required backend, retaining 30 *qualifying* trials per regime and validation Macro F1 selection.
-3. The current one-stage ResNet18 implementation differs from the earlier executed two-stage training procedure (head-only followed by fine-tuning). A separately recorded V2 fixed comparator uses another recipe. Do not mix their outcomes or silently combine their settings.
+1. The prior draft Notebook 01 wrote approximately 43 KB of Python source into `generated/monreader_methods.py` via `%%writefile` for other notebooks to import. That implementation has now been extracted into tracked `src/` modules.
+2. The previous scratch-CNN draft included an Optuna path. The revised optional full-rerun workflow uses W&B Bayesian optimization (30 *qualifying* trials per regime, validation Macro F1 selection); this expensive historical rerun is off by default, preserving the accepted submitted findings.
+3. The previous one-stage ResNet18 draft differed from the earlier two-stage method. The revised optional comparator code uses head-only followed by full fine-tuning, but the accepted historical outcomes are read rather than retrained by default. A separately recorded V2 fixed comparator uses another recipe and must not be mixed with the original outcomes.
 4. Existing charts and explanatory sections need consistent formatting and explicit distinction between validation and held-out measurements.
 5. Notebook draft sections, including proposed T/ST work, must be written **before** the researcher executes them. No fake observations or fabricated conclusions.
 
@@ -75,3 +75,15 @@ Do not update final-result language in the README until the five updated noteboo
 - Original reporting tables remain accessible as read-only archived references under `submission/results/`.
 - Published figures have a layout-generation update; regenerated dataset-specific figure pixels require the original images and notebook execution.
 - The source and notebook static check is supplied in `scripts/check_static.py`; CI results must be confirmed separately.
+
+## Phase 8 completed code-review decisions (2026-10-31)
+
+- The historical submitted results and figures remain the accepted reported findings; they are not claimed to be newly measured in the updated notebooks.
+- An independently checked split constructor yields historical O=597, S=610, T=301, ST=121 test counts and ST=489 earlier unseen-context frames. The original source split contains **24** withheld sources, not the V2 ENV-03 **29**-source cohort.
+- The new progressive ST experiment now reads the original **ST_split.csv** produced in Notebook 01 and checks all 2,989 sample IDs, 24 unseen sources and 489/121 historical context/test counts **before training**. The model never trains or validates on any of these 24 sources.
+- New ST evaluation suffixes for 25/50/75% may cover a portion of the historically context-only 489 images, **as an entirely new evaluation**, not as historical ST testing or development. The accepted ST score remains confined to 121 later historical frames.
+- O/S/T/ST model-selection tables are report-first by default, with expensive historic W&B sweeps and comparator reruns explicitly opt-in. Notebook 04 remains the only default **new model-training study**, with two progressive ResNet18 paths.
+- The original static research figures remain published. New dataset-dependent figures will be rendered on actual image data in Jupyter; no unsupported plots or results have been fabricated.
+- GitHub Actions static syntax and figure-path checks passed for commit `5d2721a79c154513b9686df022c0df87a2cb01a1` before this documentation update. This is **not** a full runtime validation of the new models.
+
+**Next boundary:** The researcher needs a local clone, image archive extracted in the expected folder, appropriate PyTorch installation, and Jupyter execution. Review the new progressive outputs before making final scientific conclusions or changing README metrics. `main` is untouched.
