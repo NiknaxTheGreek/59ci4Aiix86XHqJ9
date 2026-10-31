@@ -24,25 +24,35 @@ MIN_FRAMES_PER_CLASS = 20
 MIN_SOURCES_PER_CLASS = 8
 
 
-def environment_source_keys(manifest, environment_csv, heldout_environment='ENV-03'):
-    """Identify an unseen source cohort from the predeclared environment map."""
-    mapping = pd.read_csv(environment_csv)
-    required = {'video_id', 'environment_id'}
-    if not required.issubset(mapping.columns):
-        raise ValueError('Environment map requires video_id and environment_id')
-    # The checked archive defines canonical video_id as label/zero-padded-number.
-    source_map = mapping.assign(
-        source_key=mapping.video_id.astype(str).str.replace('/', '::', regex=False)
-    )
-    if source_map.source_key.duplicated().any():
-        raise ValueError('Duplicate source assignment in environment map')
-    known = set(source_map.loc[source_map.environment_id != heldout_environment, 'source_key'])
-    unseen = set(source_map.loc[source_map.environment_id == heldout_environment, 'source_key'])
-    present = set(manifest.source_key.astype(str))
-    if (known & unseen) or not unseen or (known | unseen) != present:
-        raise AssertionError('Environment membership is incomplete or overlapping')
-    return known, unseen
+def original_unseen_sources(manifest, frozen_st_split_path):
+    """Reuse the *historical* frozen 24-source ST holdout; never choose ENV-03.
 
+    The submitted experiment includes 489 earlier context and 121 later test
+    frames from these 24 source videos. None may be used for fitting or
+    validation in the progressive ST experiment.
+    """
+    frozen = pd.read_csv(frozen_st_split_path)
+    required = {'sample_id', 'source_key', 'role'}
+    if not required.issubset(frozen.columns):
+        raise ValueError(f'Original ST split must contain {sorted(required)}')
+    if len(frozen) != len(manifest) or set(frozen.sample_id) != set(manifest.sample_id):
+        raise AssertionError('Frozen ST split does not match current dataset manifest')
+    unseen_rows = frozen[frozen.role.isin(('test', 'context_unseen_early'))]
+    known_rows = frozen[frozen.role.isin(('train', 'validation'))]
+    unseen = set(unseen_rows.source_key.astype(str))
+    known = set(known_rows.source_key.astype(str))
+    if len(unseen) != 24:
+        raise AssertionError(f'Expected original 24 unseen sources, found {len(unseen)}')
+    if (known & unseen) or (known | unseen) != set(manifest.source_key.astype(str)):
+        raise AssertionError('ST source cohorts are incomplete or overlapping')
+    context = frozen[frozen.role == 'context_unseen_early']
+    later = frozen[frozen.role == 'test']
+    if len(context) != 489 or len(later) != 121:
+        raise AssertionError(f'Expected 489 early/121 late, observed {len(context)}/{len(later)}')
+    if set(context.source_key) != unseen or set(later.source_key) != unseen:
+        raise AssertionError('Incomplete early/late test-source coverage')
+    # Exact 489/121 figures refer to the 80/20 historical split.
+    return known, unseen
 
 def chronological_checkpoint(manifest, regime, coverage, known_sources=None, unseen_sources=None):
     """Build a chronological training prefix and a protected future evaluation suffix.
@@ -168,11 +178,11 @@ def plot_progressive_results(overall, windows, out_dir):
         plt.close(fig)
 
 
-def run_progressive_temporal(manifest, settings, device, environment_map_path):
+def run_progressive_temporal(manifest, settings, device, original_st_split_path):
     """Fine-tune two models progressively (T and ST), saving each frozen checkpoint."""
     root = Path(settings['out']) / 'progressive_temporal'
     root.mkdir(parents=True, exist_ok=True)
-    known, unseen = environment_source_keys(manifest, environment_map_path)
+    known, unseen = original_unseen_sources(manifest, original_st_split_path)
     overall_records, horizon_records = [], []
     for regime in ('T', 'ST'):
         setup(settings['seed'])
@@ -241,7 +251,10 @@ def run_progressive_temporal(manifest, settings, device, environment_map_path):
         coverages=COVERAGES, horizon_width=HORIZON_WIDTH,
         min_frames_per_class=MIN_FRAMES_PER_CLASS,
         min_sources_per_class=MIN_SOURCES_PER_CLASS,
-        unseen_environment='ENV-03', model_family='ImageNet ResNet18',
+        unseen_cohort='original historical ST holdout: 24 sources / 489 early / 121 late',
+        st_source_split_file=str(original_st_split_path),
+        n_known_sources=len(known), n_unseen_sources=len(unseen),
+        model_family='ImageNet ResNet18',
         progressive=True, classification_not_future_event_prediction=True,
         actual_elapsed_time_known=False, online_learning=False,
     ))
