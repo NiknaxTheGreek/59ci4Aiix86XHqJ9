@@ -6,7 +6,7 @@ The project evaluates **O (Original), S (Source-safe), T (Temporal), and ST (Sou
 
 ## Research status and provenance
 
-**Historical evidence and new execution are separate.** The tables and figures below report the originally executed MonReader experiment. They remain reference results until the five `updated_` notebooks are run and their new scores reviewed. The original report's held-out sample counts were O=597, S=610, T=301 and ST=121; a separate later V2 split record uses different source restrictions and test sample counts. See [the reconstruction inventory](docs/RECONSTRUCTION_INVENTORY.md) for the distinction.
+**Historical evidence and new execution are separate.** The tables and figures below report the originally executed MonReader experiment. They remain reference results until the five `updated_` notebooks are run and their new scores reviewed. The original report's held-out sample counts were O=597, S=610, T=301 and ST=121. Under original ST, **489 earlier frames from 24 withheld sources were context-only**, rather than used for training/validation or the late-only test. A separate later V2 split record uses a different 29-source environment cohort and test sample counts. See [the reconstruction inventory](docs/RECONSTRUCTION_INVENTORY.md) for the distinction.
 
 A new **progressive temporal proof-of-principle** is drafted in Notebook 04 and is not yet an observed result. The underlying dataset does not establish capture days or actual time intervals.
 
@@ -62,7 +62,7 @@ The project compared a **custom convolutional neural network (CNN) trained from 
 
 ResNet18 outperformed the Scratch CNN across all four regimes. The contrast was most pronounced in **S**, where the Scratch CNN deteriorated sharply while ResNet18 remained strong. This difference identifies a generalization problem worth investigating; it does not, by itself, identify which visual cues caused the Scratch CNN's weaker result.
 
-ResNet18 itself declined from **0.995 in O to 0.877 in ST**. A near-perfect result under randomly mixed frames therefore did not translate into equally strong performance when both source identity and frame chronology changed.
+ResNet18 itself declined from **0.995 in O to 0.877 in ST**. A near-perfect result under the original source-overlapping supplied partition therefore did not translate into equally strong performance when both source identity and frame chronology changed.
 
 <p align="center"><img src="figures/model_comparison.svg" alt="Model comparison across evaluation regimes" width="670" /></p>
 
@@ -149,9 +149,9 @@ For deployment, the main risk is therefore **missed page turns**, and many of th
 
 ## Progressive temporal updating — new experiment (pending execution)
 
-The updated fourth notebook contains a separate, executable proof of principle using two progressively fine-tuned pretrained ResNet18 models. The T model is updated using increasing prefixes of familiar recordings; ST uses early frames from known sources and evaluates chronological positions within never-seen sources. At **25%, 50%, 75% and 90%** historical coverage, it computes both overall remaining-future Macro F1 and **three-frame horizon-window** Macro F1/flip recall, with minimum class and source support. The same final 10% of each source is also used for a matched-future comparison. The experiment **does not** demonstrate future-event forecasting, elapsed-time drift, or automatic online learning; supervised updates require new labels.
+The updated fourth notebook contains a separate, executable proof of principle using two progressively fine-tuned pretrained ResNet18 models. The T model is updated using increasing prefixes of familiar recordings. ST reuses the **original frozen 24 unseen source videos** (489 early-context and 121 later-test frames in the historical 80/20 split); they remain excluded from training and validation at every checkpoint. The ST model is updated from increasing prefixes of **known-source** videos and evaluated on later positions in the unseen recordings. At **25%, 50%, 75% and 90%** historical coverage, it computes both overall remaining-future Macro F1 and **three-frame horizon-window** Macro F1/flip recall, with minimum class and source support. The same final 10% of each source is also used for a matched-future comparison. The experiment **does not** demonstrate future-event forecasting, elapsed-time drift, or automatic online learning; supervised updates require new labels.
 
-**Results and plots will be added here only after the revised notebooks have been executed and reviewed.**
+**Results and plots will be added here only after the new progressive experiment has been executed and reviewed.** Accepted historical results are retained without repeating the completed 120 qualifying W&B trials.
 
 ## Conclusion and Recommendation
 
@@ -169,7 +169,7 @@ Next priorities are broader testing on unseen recording sources, investigation o
 
 ## Reproducing the Project
 
-The five notebooks form an executable technical report covering data preparation, model development, testing, robustness analysis and interpretability. **Running them in order with the original dataset generates a **fresh, auditable run**. Minor differences from the historic reported scores are possible because model initialization, trial sequences and execution environments differ. A Weights & Biases account is required for Bayesian hyperparameter optimization.**
+The five updated notebooks form an executable technical report covering data preparation, accepted historical model development, previously reported testing, and the new progressive generalization analysis. Running the five updated notebooks in order **preserves and displays the accepted historical evidence by default**, while the newly designed progressive T/ST study generates fresh measurements. The former W&B and ResNet18 experiments are **not repeated automatically**; optional full reruns can be enabled explicitly and produce separately identified outputs. A W&B account is required only for an optional new Bayesian sweep.
 
 1. Set up Python 3.11 or newer and install the dependencies:
    ```bash
@@ -177,14 +177,14 @@ The five notebooks form an executable technical report covering data preparation
    ```
    Install the PyTorch build appropriate for your CPU or GPU if needed.
 2. [Download the original MonReader dataset](https://drive.google.com/file/d/1KDQBTbo5deKGCdVV_xIujscn5ImxW4dm/view?usp=sharing) and extract it into `data/raw/`, or set `MONREADER_DATA_ROOT` to the extracted dataset location.
-3. Sign in to [Weights & Biases](https://wandb.ai/), run `wandb login`, and configure `MONREADER_WANDB_PROJECT` and, if applicable, `MONREADER_WANDB_ENTITY` for your account.
-4. Run notebooks **01 → 02 → 03 → 04 → 05** from the project root. Models, predictions, metrics, figures and other generated outputs are saved locally.
+3. For the **default historical-report + new-progressive-study pathway**, W&B authentication is **not** required. If you explicitly enable `RERUN_HISTORICAL_MODELS = True` in the relevant notebooks, sign in to [Weights & Biases](https://wandb.ai/), run `wandb login`, and set `MONREADER_WANDB_PROJECT` (and optionally `MONREADER_WANDB_ENTITY`).
+4. Run notebooks **01 → 02 → 03 → 04 → 05** from the project root. Notebook 01 generates the frozen dataset splits; 02 and 03 display historical results by default; Notebook 04 runs the **new** progressive T/ST experiment; and 05 synthesizes accepted historical and newly measured findings. New outputs are saved locally, while the original submitted results remain unchanged.
 
 **Evaluation metric:** Macro F1 is the primary measure used for hyperparameter optimization, checkpoint selection and held-out comparison.
 
 ## Repository Guide
 
-The project consists of five `updated_` research notebooks, reusable Python source code in `src/`, a `requirements.txt` environment specification, and the four figures displayed in this report. Downloaded images, trained model checkpoints, W&B logs and generated experiment outputs are kept separately from tracked project code.
+The project consists of five `updated_` research notebooks, reusable Python source code in `src/`, a `requirements.txt` environment specification, archived evidence under `submission/results/`, and the four historical figures displayed in this report. The progressive T/ST study produces additional figures **only after execution**. Downloaded images, trained model checkpoints, W&B logs and generated experiment outputs are kept separately from tracked project code.
 
 ### Notebook Guide
 
