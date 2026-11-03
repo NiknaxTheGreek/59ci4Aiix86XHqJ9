@@ -197,3 +197,34 @@ The project consists of five `updated_` research notebooks, reusable Python sour
 | `updated_03_model_comparison.ipynb` | Fine-tune ResNet18, compare held-out performance and evaluate RGB versus grayscale. |
 | `updated_04_generalization_and_stress_tests.ipynb` | Quantify source-video uncertainty, analyze errors, and evaluate progressive T/ST coverage with future-horizon windows. |
 | `updated_05_final_analysis.ipynb` | Examine representative predictions using Grad-CAM and intermediate activations, and summarize findings. |
+
+### Live progress monitoring for the new T/ST experiment
+
+Notebook `updated_04_generalization_and_stress_tests.ipynb` records the eight
+**new progressive temporal runs** in the separate W&B project
+`monreader-progressive-temporal`. They are not the 120 historical W&B qualifying
+trials and do not modify their accepted results.
+
+Before running Notebook 04, use the `monreader-gpu` Jupyter kernel and authenticate
+Weights & Biases (`wandb login`) in that environment. The notebook defaults to
+`RUN_NEW_PROGRESSIVE_TEMPORAL=True`, `log_progress_to_wandb=True`, and a GPU
+batch size of 4 to accommodate an RTX 3050 Ti with 4 GB VRAM. Confirm that
+`torch.cuda.is_available()` returns `True` in **that kernel**.
+
+Each of T-25, T-50, T-75, T-90, ST-25, ST-50, ST-75, ST-90 has its own W&B run,
+listed in order as Run 1/8 through Run 8/8. Every *completed* training epoch
+logs the stage, epoch counts, training/validation loss, validation accuracy,
+balanced accuracy, and validation Macro F1. The held-out future results are
+added to the W&B run summary only after actual evaluation. Jupyter prints the
+same epoch-level metrics and W&B run URLs. This workflow retains historical
+split constraints and never generates placeholder results.
+
+On interruption, the epoch-state checkpoint contains the model, optimizer,
+RNG state, and best-validation model, and the W&B run ID is stored alongside it.
+Resume only within the same experiment protocol and data; changed configurations
+are blocked by a checkpoint fingerprint. Model/source data remain local; W&B
+receives experiment metadata and numeric metrics, not private image contents.
+
+**Execution caveat:** GitHub CI verifies syntax and notebook structure, not a
+full GPU execution or authenticated W&B session. Restart the Jupyter kernel after
+pulling changes to ensure updated `src/` modules are imported.
