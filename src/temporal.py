@@ -225,7 +225,7 @@ def run_progressive_temporal(manifest, settings, device, original_st_split_path)
                 if id_file.is_file():
                     wandb_id=id_file.read_text(encoding='utf8').strip()
                 else:
-                    wandb_id=wandb.util.generate_id()
+                    wandb_id=__import__('uuid').uuid4().hex[:8]
                     id_file.write_text(wandb_id,encoding='utf8')
                 wb_run=wandb.init(
                     project=settings.get('progressive_wandb_project','monreader-progressive-temporal'),
