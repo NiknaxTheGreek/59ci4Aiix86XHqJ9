@@ -203,6 +203,26 @@ def run_progressive_temporal(manifest, settings, device, original_st_split_path)
             folder = root / regime / f'{int(coverage*100):02d}pct'
             folder.mkdir(parents=True, exist_ok=True)
             final_checkpoint = folder / 'checkpoint.pt'
+            # An older workflow may have saved an incompatible checkpoint
+            # in this directory. Preserve the *entire* old stage directory
+            # rather than stopping at every subsequent T/ST coverage level.
+            # The original files remain inspectable and are never overwritten.
+            if final_checkpoint.is_file():
+                prior = torch.load(final_checkpoint, map_location='cpu', weights_only=False)
+                compatible = (
+                    prior.get('fingerprint') == fingerprint
+                    and prior.get('regime') == regime
+                    and prior.get('coverage') == coverage
+                )
+                if not compatible:
+                    archived = folder.with_name(
+                        folder.name + '_archived_incompatible_' + str(time.time_ns())
+                    )
+                    folder.rename(archived)
+                    folder.mkdir(parents=True, exist_ok=True)
+                    print(f'[{regime} {int(coverage*100)}%] Preserved incompatible '
+                          f'checkpoint and its old outputs at {archived}; '
+                          'starting a new compatible stage.', flush=True)
             label = f'{regime} {int(coverage*100)}%'
             print(f'\n======== RUN {run_number}/8: {label} ========', flush=True)
             print(f'[{label}] train={len(train)}, validation={len(validation)}, future={len(future)}', flush=True)
