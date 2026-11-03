@@ -218,8 +218,20 @@ def run_progressive_temporal(manifest, settings, device, original_st_split_path)
                     archived = folder.with_name(
                         folder.name + '_archived_incompatible_' + str(time.time_ns())
                     )
+                    # A just-started W&B run can belong to this NEW study even
+                    # though the stage weights came from the legacy workflow.
+                    # Preserve that new run ID so a retry doesn't create duplicates.
+                    id_file = folder / 'wandb_run_id.txt'
+                    retry_wandb_id = (
+                        id_file.read_text(encoding='utf8').strip()
+                        if id_file.is_file() else None
+                    )
                     folder.rename(archived)
                     folder.mkdir(parents=True, exist_ok=True)
+                    if retry_wandb_id:
+                        (folder / 'wandb_run_id.txt').write_text(
+                            retry_wandb_id, encoding='utf8'
+                        )
                     print(f'[{regime} {int(coverage*100)}%] Preserved incompatible '
                           f'checkpoint and its old outputs at {archived}; '
                           'starting a new compatible stage.', flush=True)
