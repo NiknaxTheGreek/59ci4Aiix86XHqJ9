@@ -59,24 +59,60 @@ def audit_manifest(df, out):
     return summary
 
 class FrameDataset(Dataset):
-    def __init__(self,table,image_size=224,gray=False,imagenet=False):
-        self.table=table.reset_index(drop=True);self.gray=gray
+    """Read original images, optionally caching losslessly resized RGB frames.
+
+    Cache files are only derived image pixels; original images and split IDs
+    are unchanged. PIL's default torchvision.Resize interpolation is bilinear.
+    """
+    def __init__(self,table,image_size=224,gray=False,imagenet=False,cache_dir=None):
+        self.table=table.reset_index(drop=True)
+        self.gray=gray
+        self.image_size=int(image_size)
+        self.cache_dir=Path(cache_dir) if cache_dir and not gray else None
+        if self.cache_dir is not None:
+            self.cache_dir.mkdir(parents=True,exist_ok=True)
         t=[transforms.Resize((image_size,image_size)),transforms.ToTensor()]
         if imagenet:t.append(transforms.Normalize([.485,.456,.406],[.229,.224,.225]))
         self.transform=transforms.Compose(t)
-    def __len__(self):return len(self.table)
+
+    def __len__(self):
+        return len(self.table)
+
     def __getitem__(self,i):
         row=self.table.iloc[i]
-        with Image.open(row.path) as im:
-            if self.gray:
-                # 1-channel intensities replicated to three channels to preserve architecture and shape.
-                im=im.convert('L').convert('RGB')
-            else:im=im.convert('RGB')
-            x=self.transform(im)
+        original=Path(row.path)
+        cached=None
+        if self.cache_dir is not None:
+            stat=original.stat()
+            cache_name=f"{row.sample_id}_{self.image_size}_{stat.st_size}_{stat.st_mtime_ns}.png"
+            cached=self.cache_dir/cache_name
+        if cached is not None and cached.is_file():
+            with Image.open(cached) as image:
+                image=image.convert('RGB')
+                x=self.transform(image)
+        else:
+            with Image.open(original) as image:
+                image=image.convert('L').convert('RGB') if self.gray else image.convert('RGB')
+                if cached is not None:
+                    # Same PIL BILINEAR resize as torchvision, now done only once.
+                    image=image.resize((self.image_size,self.image_size),
+                                       Image.Resampling.BILINEAR)
+                    temporary=cached.with_suffix('.partial')
+                    try:
+                        image.save(temporary,format='PNG',compress_level=1)
+                        os.replace(temporary,cached)
+                    finally:
+                        temporary.unlink(missing_ok=True)
+                x=self.transform(image)
         return x,torch.tensor(float(row.target),dtype=torch.float32)
 
 def make_loader(table,settings,batch_size=16,shuffle=False,gray=False,imagenet=False):
-    return DataLoader(FrameDataset(table,settings['image_size'],gray,imagenet),batch_size=min(int(batch_size),len(table)),shuffle=shuffle,num_workers=0,pin_memory=False)
+    cache_dir=(Path(settings['out'])/'resized_rgb_cache'
+               if settings.get('cache_resized_rgb',False) and imagenet and not gray
+               else None)
+    dataset=FrameDataset(table,settings['image_size'],gray,imagenet,cache_dir=cache_dir)
+    return DataLoader(dataset,batch_size=min(int(batch_size),len(table)),
+                      shuffle=shuffle,num_workers=0,pin_memory=False)
 
 def read_archived_result_table(path):
     """Read a preserved historical CSV, including the archive's sheet-prefixed exports.

@@ -56,56 +56,159 @@ def performance(predictions):
     d.update(tn=int(tn),fp=int(fp),fn=int(fn),tp=int(tp))
     return d
 
-def fit_model(model,train,validation,settings,config,device,gray=False,imagenet=False,log_fn=None):
-    model.to(device);optimizer=build_optimizer(model,config)
+def fit_model(model,train,validation,settings,config,device,gray=False,imagenet=False,
+              log_fn=None,progress_prefix=None,epoch_checkpoint=None):
+    """Train with observed progress and optional interruption-safe epoch recovery.
+
+    The checkpoint stores optimizer/RNG state as well as the *best* validation
+    weights, so restarting can continue rather than repeat completed epochs.
+    """
+    model.to(device)
+    optimizer=build_optimizer(model,config)
     loss_fn=nn.BCEWithLogitsLoss()
     trainloader=make_loader(train,settings,config['batch_size'],True,gray,imagenet)
-    valload=make_loader(validation,settings,min(config['batch_size'],settings['validation_batch_cap']),False,gray,imagenet)
+    valload=make_loader(validation,settings,
+                       min(config['batch_size'],settings['validation_batch_cap']),
+                       False,gray,imagenet)
     best=-1.0;best_epoch=0;best_state=None;stale=0;hist=[]
-    for epoch in range(1,settings['max_epochs']+1):
-        model.train();losses=[]
-        for bi,(images,targets) in enumerate(trainloader):
-            logits=model(images.to(device)).flatten();loss=loss_fn(logits,targets.to(device))
-            optimizer.zero_grad(set_to_none=True);loss.backward();optimizer.step()
-            losses.append(float(loss.item()))
-            if settings.get('max_batches') is not None and bi+1>=settings['max_batches']:break
-        model.eval();vprobs=[];vy=[];vloss=[]
-        with torch.no_grad():
-            for vi,(images,targets) in enumerate(valload):
-                logits=model(images.to(device)).flatten();vloss.append(float(loss_fn(logits,targets.to(device)).item()))
-                vprobs.extend(torch.sigmoid(logits).cpu().numpy().tolist());vy.extend(targets.long().numpy().tolist())
-                if settings.get('max_batches') is not None and vi+1>=settings['max_batches']:break
-        score=float(f1_score(vy,(np.array(vprobs)>=.50).astype(int),average='macro',labels=[0,1],zero_division=0))
-        row=dict(epoch=epoch,train_loss=float(np.mean(losses)),validation_loss=float(np.mean(vloss)),validation_macro_f1=score)
-        hist.append(row)
-        if log_fn is not None:log_fn(row)
-        if score>best: # strict > selects first epoch in a tie
-            best=score;best_epoch=epoch;best_state=copy.deepcopy(model.state_dict());stale=0
-        else:stale+=1
-        if stale>=settings['patience']:break
-    if best_state is None:raise RuntimeError('No checkpoint selected')
+    first_epoch=1
+    checkpoint=Path(epoch_checkpoint) if epoch_checkpoint else None
+    # A fingerprint prevents accidentally loading a checkpoint from a
+    # different split, architecture, parameter setting, or training stage.
+    identity=dict(train=sorted(train.sample_id.astype(str).tolist()),
+                  validation=sorted(validation.sample_id.astype(str).tolist()),
+                  config=config,epochs=settings['max_epochs'],patience=settings['patience'],
+                  imagenet=imagenet,gray=gray,
+                  stage=progress_prefix,
+                  image_size=settings['image_size'])
+    fingerprint=hashlib.sha256(json.dumps(identity,sort_keys=True,default=str).encode()).hexdigest()
+    label=progress_prefix or 'model'
+    if checkpoint is not None and checkpoint.exists():
+        saved=torch.load(checkpoint,map_location='cpu',weights_only=False)
+        if saved.get('fingerprint')!=fingerprint:
+            raise ValueError(f'{label}: existing epoch checkpoint belongs to a different run: {checkpoint}')
+        model.load_state_dict(saved['model_state'])
+        optimizer.load_state_dict(saved['optimizer_state'])
+        best_state=saved['best_state']
+        best=float(saved['best']);best_epoch=int(saved['best_epoch'])
+        stale=int(saved['stale']);hist=saved['history']
+        first_epoch=int(saved['epoch'])+1
+        random.setstate(saved['python_rng'])
+        np.random.set_state(saved['numpy_rng'])
+        torch.set_rng_state(saved['torch_rng'])
+        if torch.cuda.is_available() and saved.get('cuda_rng') is not None:
+            torch.cuda.set_rng_state_all(saved['cuda_rng'])
+        print(f'[{label}] Resuming after completed epoch {first_epoch-1}; '
+              f'best validation Macro F1={best:.4f}',flush=True)
+    if stale<settings['patience']:
+        for epoch in range(first_epoch,settings['max_epochs']+1):
+            started=time.perf_counter()
+            print(f'[{label}] Epoch {epoch}/{settings["max_epochs"]} '
+                  f'| train {len(train)} frames / {len(trainloader)} batches',
+                  flush=True)
+            model.train();losses=[]
+            for bi,(images,targets) in enumerate(trainloader):
+                logits=model(images.to(device)).flatten()
+                loss=loss_fn(logits,targets.to(device))
+                optimizer.zero_grad(set_to_none=True);loss.backward();optimizer.step()
+                losses.append(float(loss.item()))
+                if (bi+1)%10==0 or bi+1==len(trainloader):
+                    print(f'[{label}]   train batch {bi+1}/{len(trainloader)}',
+                          flush=True)
+                if settings.get('max_batches') is not None and bi+1>=settings['max_batches']:
+                    break
+            print(f'[{label}]   validation: {len(validation)} frames / '
+                  f'{len(valload)} batches',flush=True)
+            model.eval();vprobs=[];vy=[];vloss=[]
+            with torch.no_grad():
+                for vi,(images,targets) in enumerate(valload):
+                    logits=model(images.to(device)).flatten()
+                    vloss.append(float(loss_fn(logits,targets.to(device)).item()))
+                    vprobs.extend(torch.sigmoid(logits).cpu().numpy().tolist())
+                    vy.extend(targets.long().numpy().tolist())
+                    if (vi+1)%10==0 or vi+1==len(valload):
+                        print(f'[{label}]   validation batch {vi+1}/{len(valload)}',
+                              flush=True)
+                    if settings.get('max_batches') is not None and vi+1>=settings['max_batches']:
+                        break
+            score=float(f1_score(vy,(np.array(vprobs)>=.50).astype(int),
+                                 average='macro',labels=[0,1],zero_division=0))
+            row=dict(epoch=epoch,train_loss=float(np.mean(losses)),
+                     validation_loss=float(np.mean(vloss)),validation_macro_f1=score)
+            hist.append(row)
+            if log_fn is not None:log_fn(row)
+            if score>best:
+                best=score;best_epoch=epoch
+                best_state=copy.deepcopy(model.state_dict())
+                stale=0
+            else:
+                stale+=1
+            if checkpoint is not None:
+                checkpoint.parent.mkdir(parents=True,exist_ok=True)
+                temporary=checkpoint.with_suffix('.tmp')
+                try:
+                    torch.save(dict(epoch=epoch,model_state=model.state_dict(),
+                                    optimizer_state=optimizer.state_dict(),
+                                    best_state=best_state,best=best,best_epoch=best_epoch,
+                                    stale=stale,history=hist,fingerprint=fingerprint,
+                                    python_rng=random.getstate(),numpy_rng=np.random.get_state(),
+                                    torch_rng=torch.get_rng_state(),
+                                    cuda_rng=torch.cuda.get_rng_state_all()
+                                    if torch.cuda.is_available() else None),temporary)
+                    os.replace(temporary,checkpoint)
+                finally:
+                    temporary.unlink(missing_ok=True)
+            print(f'[{label}] Epoch {epoch} complete '
+                  f'| validation Macro F1={score:.4f} '
+                  f'| best={best:.4f} at epoch {best_epoch} '
+                  f'| elapsed={time.perf_counter()-started:.1f}s',
+                  flush=True)
+            if stale>=settings['patience']:
+                print(f'[{label}] Early stopped after epoch {epoch}',flush=True)
+                break
+    if best_state is None:
+        raise RuntimeError(f'{label}: no checkpoint selected')
     model.load_state_dict(best_state)
-    return model,pd.DataFrame(hist),dict(best_epoch=int(best_epoch),best_validation_macro_f1=float(best))
+    return model,pd.DataFrame(hist),dict(best_epoch=int(best_epoch),
+                                         best_validation_macro_f1=float(best))
 
-def fit_resnet_two_stage(model, train, validation, settings, device, resume=False):
+
+def fit_resnet_two_stage(model,train,validation,settings,device,resume=False,
+                         checkpoint_dir=None,progress_prefix=None):
     """Two-stage ImageNet fine-tuning; later incremental stages do not refreeze."""
     histories=[];selected=[]
+    directory=Path(checkpoint_dir) if checkpoint_dir is not None else None
+    prefix=progress_prefix or 'ResNet18'
     if not resume:
-        for p in model.parameters(): p.requires_grad=False
-        for p in model.fc.parameters(): p.requires_grad=True
+        for p in model.parameters():p.requires_grad=False
+        for p in model.fc.parameters():p.requires_grad=True
         head_settings={**settings,'max_epochs':5,'patience':5}
         head_cfg=dict(optimizer='adamw',learning_rate=.001,weight_decay=.0001,batch_size=16)
-        model,h,info=fit_model(model,train,validation,head_settings,head_cfg,device,imagenet=True)
+        model,h,info=fit_model(model,train,validation,head_settings,head_cfg,device,
+                               imagenet=True,progress_prefix=f'{prefix} head-only',
+                               epoch_checkpoint=(directory/'head_epoch.pt')
+                               if directory else None)
         h['stage']='head_only';histories.append(h)
-        selected.append((info['best_validation_macro_f1'],copy.deepcopy(model.state_dict()),'head_only'))
+        selected.append((info['best_validation_macro_f1'],
+                         copy.deepcopy(model.state_dict()),'head_only'))
     for p in model.parameters():p.requires_grad=True
     cfg=dict(optimizer='adamw',learning_rate=.0001,weight_decay=.0001,batch_size=16)
-    finetune_settings={**settings,'max_epochs':5 if resume else 20,'patience':3 if resume else 5}
-    model,h,info=fit_model(model,train,validation,finetune_settings,cfg,device,imagenet=True)
+    finetune_settings={**settings,'max_epochs':5 if resume else 20,
+                       'patience':3 if resume else 5}
+    model,h,info=fit_model(model,train,validation,finetune_settings,cfg,device,
+                           imagenet=True,
+                           progress_prefix=f'{prefix} continued' if resume
+                           else f'{prefix} fine-tuning',
+                           epoch_checkpoint=(directory/'finetune_epoch.pt')
+                           if directory else None)
     h['stage']='continued_update' if resume else 'full_finetune';histories.append(h)
-    selected.append((info['best_validation_macro_f1'],copy.deepcopy(model.state_dict()),h['stage'].iloc[0]))
-    best=max(selected,key=lambda item:item[0]);model.load_state_dict(best[1])
-    return model,pd.concat(histories,ignore_index=True),dict(best_validation_macro_f1=float(best[0]),selected_stage=best[2])
+    selected.append((info['best_validation_macro_f1'],
+                     copy.deepcopy(model.state_dict()),h['stage'].iloc[0]))
+    best=max(selected,key=lambda item:item[0])
+    model.load_state_dict(best[1])
+    return model,pd.concat(histories,ignore_index=True),dict(
+        best_validation_macro_f1=float(best[0]),selected_stage=best[2])
+
 
 def train_resnet_regime(split,regime,settings,device):
     out=Path(settings['out'])/'resnet18'/regime;out.mkdir(parents=True,exist_ok=True)
