@@ -8,6 +8,7 @@ from __future__ import annotations
 import math
 import time
 import hashlib
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -187,12 +188,14 @@ def run_progressive_temporal(manifest, settings, device, original_st_split_path)
     overall_records, horizon_records = [], []
     fingerprint = hashlib.sha256((manifest[['sample_id', 'source_key', 'frame_number']]
         .sort_values('sample_id').to_csv(index=False) + str(sorted(unseen))
-        + str(settings['image_size']) + str(settings['seed'])).encode()).hexdigest()
+        + str(settings['image_size']) + str(settings['seed'])
+        + str(settings.get('progressive_batch_size',16))).encode()).hexdigest()
     print(f'Progressive study device: {device}; cache: {settings.get("cache_resized_rgb", False)}', flush=True)
     for regime in ('T', 'ST'):
         setup(settings['seed'])
         model = get_resnet(pretrained=True).to(device)
         for step, coverage in enumerate(COVERAGES):
+            run_number = (0 if regime == 'T' else len(COVERAGES)) + step + 1
             started = time.perf_counter()
             train, validation, future = chronological_checkpoint(
                 manifest, regime, coverage, known, unseen
@@ -201,70 +204,162 @@ def run_progressive_temporal(manifest, settings, device, original_st_split_path)
             folder.mkdir(parents=True, exist_ok=True)
             final_checkpoint = folder / 'checkpoint.pt'
             label = f'{regime} {int(coverage*100)}%'
+            print(f'\n======== RUN {run_number}/8: {label} ========', flush=True)
             print(f'[{label}] train={len(train)}, validation={len(validation)}, future={len(future)}', flush=True)
-            if final_checkpoint.is_file():
-                record = torch.load(final_checkpoint, map_location='cpu', weights_only=False)
-                if (record.get('fingerprint') != fingerprint or
-                    record.get('regime') != regime or record.get('coverage') != coverage):
-                    raise ValueError(f'Incompatible prior result at {final_checkpoint}; keep runs separate.')
-                model.load_state_dict(record['state_dict'])
-                selected = record['selected_validation']
-                print(f'[{label}] Resuming from saved completed stage.', flush=True)
-            else:
-                model, history, selected = fit_resnet_two_stage(
-                    model, train, validation, settings, device, resume=(step > 0),
-                    checkpoint_dir=folder, progress_prefix=label
+            wb_run = None
+            finished = False
+            if settings.get('log_progress_to_wandb', False):
+                if os.getenv('WANDB_MODE','online').lower()!='online':
+                    raise RuntimeError(
+                        'Live W&B tracking requested, but WANDB_MODE is not online. '
+                        'Unset WANDB_MODE and authenticate using wandb login.'
+                    )
+                try:
+                    import wandb
+                except ImportError as exc:
+                    raise RuntimeError(
+                        'Weights & Biases is missing in the active Jupyter kernel. '
+                        'Install wandb in the monreader-gpu environment.'
+                    ) from exc
+                id_file=folder/'wandb_run_id.txt'
+                if id_file.is_file():
+                    wandb_id=id_file.read_text(encoding='utf8').strip()
+                else:
+                    wandb_id=wandb.util.generate_id()
+                    id_file.write_text(wandb_id,encoding='utf8')
+                wb_run=wandb.init(
+                    project=settings.get('progressive_wandb_project','monreader-progressive-temporal'),
+                    entity=settings.get('wandb_entity'),
+                    id=wandb_id,
+                    resume='allow',
+                    name=f'Run {run_number:02d} of 08 | {regime} | {int(coverage*100)}% coverage',
+                    group=f'progressive-temporal-{fingerprint[:12]}',
+                    job_type='progressive-temporal',
+                    tags=['new-study','resnet18','progressive',regime],
+                    config={
+                        'study':'new progressive T/ST - not original 120 W&B trials',
+                        'run_number':run_number,'total_runs':8,
+                        'regime':regime,'coverage_percent':int(coverage*100),
+                        'n_train':len(train),'n_validation':len(validation),
+                        'n_future':len(future),
+                        'architecture':'ImageNet ResNet18',
+                        'seed':settings['seed'],
+                        'image_size':settings['image_size'],
+                        'batch_size':int(settings.get('progressive_batch_size',16)),
+                        'protocol_fingerprint':fingerprint,
+                        'historical_ST_unseen_source_count':len(unseen),
+                        'max_head_epochs':5 if step==0 else 0,
+                        'max_finetune_epochs':20 if step==0 else 5,
+                        'experiment_is_online_learning':False,
+                    },
                 )
-                history.to_csv(folder / 'training_history.csv', index=False)
-                torch.save(dict(
-                    architecture='resnet18', state_dict=model.cpu().state_dict(),
-                    regime=regime, coverage=coverage, fingerprint=fingerprint,
-                    selected_validation=selected, training_recipe='progressive_two_stage',
-                    seed=settings['seed'],
-                ), final_checkpoint)
-                for epoch_file in ('head_epoch.pt', 'finetune_epoch.pt'):
-                    (folder / epoch_file).unlink(missing_ok=True)
-                print(f'[{label}] Training checkpoint saved.', flush=True)
-            model.to(device)
-            inference_started = time.perf_counter()
-            print(f'[{label}] Predicting future frames...', flush=True)
-            predictions = predict_frame_table(
-                model, future, settings, device, batch_size=16, imagenet=True
-            ).merge(future[['sample_id','horizon_position','frame_position_percent']],
-                    on='sample_id', validate='one_to_one')
-            inference_seconds = time.perf_counter() - inference_started
-            predictions.to_csv(folder / 'future_predictions.csv', index=False)
-            entire = performance(predictions)
+                print(f'[RUN {run_number}/8] Live W&B dashboard: {wb_run.url}', flush=True)
 
-            # Every model is tested on the identical last-10%-of-source suffix.
-            # The 90% training prefix ends *before* these protected frames.
-            common_suffix = predictions[predictions.frame_position_percent > 90]
-            matched = performance(common_suffix)
+            def report_epoch(row, stage, global_epoch, planned_epochs):
+                """Visible Jupyter output is emitted by fit_model; sync epoch metrics online."""
+                if wb_run is None:
+                    return
+                wb_run.log({
+                    'epoch':int(global_epoch),
+                    'progress/run_number':run_number,
+                    'progress/total_runs':8,
+                    'progress/epoch':int(row['epoch']),
+                    'progress/planned_stage_epochs':5 if stage=='head_only'
+                        or stage=='continued_update' else 20,
+                    'progress/planned_run_epochs':planned_epochs,
+                    'progress/stage':stage,
+                    'train/loss':float(row['train_loss']),
+                    'validation/loss':float(row['validation_loss']),
+                    'validation/accuracy':float(row['validation_accuracy']),
+                    'validation/balanced_accuracy':float(row['validation_balanced_accuracy']),
+                    'validation/macro_f1':float(row['validation_macro_f1']),
+                },step=int(global_epoch))
+                print(f'[RUN {run_number}/8 | {stage} | epoch '
+                      f'{int(row["epoch"])}/{5 if stage in ("head_only","continued_update") else 20}] '
+                      f'W&B synced: val acc={row["validation_accuracy"]:.4f}, '
+                      f'Macro F1={row["validation_macro_f1"]:.4f}',flush=True)
 
-            horizons = horizon_summary(predictions)
-            horizons['coverage_percent'] = int(round(coverage * 100))
-            horizons['regime'] = regime
-            horizons.to_csv(folder / 'horizon_windows.csv', index=False)
-            horizon_records.extend(horizons.to_dict('records'))
-            overall_records.append(dict(
-                regime=regime, coverage_percent=int(round(coverage * 100)),
-                n_train=len(train), n_validation=len(validation),
-                n_future=len(future), n_future_sources=int(future.source_key.nunique()),
-                n_matched=len(common_suffix),
-                future_macro_f1=entire['macro_f1'],
-                future_flip_recall=entire['flip_recall'],
-                future_flip_f1=2 * entire['flip_precision'] * entire['flip_recall'] /
-                    max(entire['flip_precision'] + entire['flip_recall'], 1e-12),
-                false_negatives=entire['fn'], false_positives=entire['fp'],
-                matched_macro_f1=matched['macro_f1'],
-                matched_flip_recall=matched['flip_recall'],
-                checkpoint_selection=selected['selected_stage'],
-                inference_seconds=round(inference_seconds, 3),
-                end_to_end_frames_per_second=round(len(future) / max(inference_seconds, 1e-9), 2),
-                training_plus_evaluation_seconds=round(time.perf_counter()-started, 2),
-            ))
-            print(f'[{label}] Future Macro F1={entire["macro_f1"]:.4f} | '
-                  f'matched final-10% Macro F1={matched["macro_f1"]:.4f}', flush=True)
+            try:
+                if final_checkpoint.is_file():
+                    record = torch.load(final_checkpoint, map_location='cpu', weights_only=False)
+                    if (record.get('fingerprint') != fingerprint or
+                        record.get('regime') != regime or record.get('coverage') != coverage):
+                        raise ValueError(f'Incompatible prior result at {final_checkpoint}; keep runs separate.')
+                    model.load_state_dict(record['state_dict'])
+                    selected = record['selected_validation']
+                    print(f'[{label}] Resuming from saved completed stage.', flush=True)
+                else:
+                    model, history, selected = fit_resnet_two_stage(
+                        model, train, validation, settings, device, resume=(step > 0),
+                        checkpoint_dir=folder, progress_prefix=label,
+                        on_epoch=report_epoch if wb_run is not None else None
+                    )
+                    history.to_csv(folder / 'training_history.csv', index=False)
+                    torch.save(dict(
+                        architecture='resnet18', state_dict=model.cpu().state_dict(),
+                        regime=regime, coverage=coverage, fingerprint=fingerprint,
+                        selected_validation=selected, training_recipe='progressive_two_stage',
+                        seed=settings['seed'],
+                    ), final_checkpoint)
+                    for epoch_file in ('head_epoch.pt', 'finetune_epoch.pt'):
+                        (folder / epoch_file).unlink(missing_ok=True)
+                    print(f'[{label}] Training checkpoint saved.', flush=True)
+                model.to(device)
+                inference_started = time.perf_counter()
+                print(f'[{label}] Predicting future frames...', flush=True)
+                predictions = predict_frame_table(
+                    model, future, settings, device, batch_size=16, imagenet=True
+                ).merge(future[['sample_id','horizon_position','frame_position_percent']],
+                        on='sample_id', validate='one_to_one')
+                inference_seconds = time.perf_counter() - inference_started
+                predictions.to_csv(folder / 'future_predictions.csv', index=False)
+                entire = performance(predictions)
+
+                # Every model is tested on the identical last-10%-of-source suffix.
+                # The 90% training prefix ends *before* these protected frames.
+                common_suffix = predictions[predictions.frame_position_percent > 90]
+                matched = performance(common_suffix)
+
+                horizons = horizon_summary(predictions)
+                horizons['coverage_percent'] = int(round(coverage * 100))
+                horizons['regime'] = regime
+                horizons.to_csv(folder / 'horizon_windows.csv', index=False)
+                horizon_records.extend(horizons.to_dict('records'))
+                overall_records.append(dict(
+                    regime=regime, coverage_percent=int(round(coverage * 100)),
+                    n_train=len(train), n_validation=len(validation),
+                    n_future=len(future), n_future_sources=int(future.source_key.nunique()),
+                    n_matched=len(common_suffix),
+                    future_macro_f1=entire['macro_f1'],
+                    future_flip_recall=entire['flip_recall'],
+                    future_flip_f1=2 * entire['flip_precision'] * entire['flip_recall'] /
+                        max(entire['flip_precision'] + entire['flip_recall'], 1e-12),
+                    false_negatives=entire['fn'], false_positives=entire['fp'],
+                    matched_macro_f1=matched['macro_f1'],
+                    matched_flip_recall=matched['flip_recall'],
+                    checkpoint_selection=selected['selected_stage'],
+                    inference_seconds=round(inference_seconds, 3),
+                    end_to_end_frames_per_second=round(len(future) / max(inference_seconds, 1e-9), 2),
+                    training_plus_evaluation_seconds=round(time.perf_counter()-started, 2),
+                ))
+                print(f'[{label}] Future Macro F1={entire["macro_f1"]:.4f} | '
+                      f'matched final-10% Macro F1={matched["macro_f1"]:.4f}', flush=True)
+                if wb_run is not None:
+                    wb_run.summary.update({
+                        'heldout/future_macro_f1':float(entire['macro_f1']),
+                        'heldout/future_flip_recall':float(entire['flip_recall']),
+                        'heldout/matched_final10_macro_f1':float(matched['macro_f1']),
+                        'heldout/n_future_frames':len(future),
+                        'selected_validation/stage':selected['selected_stage'],
+                        'progress/run_number':run_number,
+                        'progress/total_runs':8,
+                        'status':'completed',
+                    })
+                    print(f'[RUN {run_number}/8] W&B final metrics updated: {wb_run.url}', flush=True)
+                finished=True
+            finally:
+                if wb_run is not None:
+                    wb_run.finish(exit_code=0 if finished else 1)
         pd.DataFrame([r for r in overall_records if r['regime']==regime]).to_csv(
             root / f'{regime}_overall_results.csv', index=False
         )
