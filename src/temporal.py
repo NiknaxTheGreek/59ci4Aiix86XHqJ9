@@ -185,7 +185,9 @@ def run_progressive_temporal(manifest, settings, device, original_st_split_path)
     root.mkdir(parents=True, exist_ok=True)
     known, unseen = original_unseen_sources(manifest, original_st_split_path)
     overall_records, horizon_records = [], []
-    fingerprint = hashlib.sha256((manifest[['sample_id', 'source_key', 'frame_number']]\n        .sort_values('sample_id').to_csv(index=False) + str(sorted(unseen))\n        + str(settings['image_size']) + str(settings['seed'])).encode()).hexdigest()
+    fingerprint = hashlib.sha256((manifest[['sample_id', 'source_key', 'frame_number']]
+        .sort_values('sample_id').to_csv(index=False) + str(sorted(unseen))
+        + str(settings['image_size']) + str(settings['seed'])).encode()).hexdigest()
     print(f'Progressive study device: {device}; cache: {settings.get("cache_resized_rgb", False)}', flush=True)
     for regime in ('T', 'ST'):
         setup(settings['seed'])
