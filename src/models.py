@@ -131,12 +131,17 @@ def fit_model(model,train,validation,settings,config,device,gray=False,imagenet=
                               flush=True)
                     if settings.get('max_batches') is not None and vi+1>=settings['max_batches']:
                         break
-            score=float(f1_score(vy,(np.array(vprobs)>=.50).astype(int),
+            predicted=(np.array(vprobs)>=.50).astype(int)
+            score=float(f1_score(vy,predicted,
                                  average='macro',labels=[0,1],zero_division=0))
+            val_accuracy=float(accuracy_score(vy,predicted))
+            val_balanced_accuracy=float(balanced_accuracy_score(vy,predicted))
             row=dict(epoch=epoch,train_loss=float(np.mean(losses)),
-                     validation_loss=float(np.mean(vloss)),validation_macro_f1=score)
+                     validation_loss=float(np.mean(vloss)),
+                     validation_accuracy=val_accuracy,
+                     validation_balanced_accuracy=val_balanced_accuracy,
+                     validation_macro_f1=score)
             hist.append(row)
-            if log_fn is not None:log_fn(row)
             if score>best:
                 best=score;best_epoch=epoch
                 best_state=copy.deepcopy(model.state_dict())
@@ -158,8 +163,12 @@ def fit_model(model,train,validation,settings,config,device,gray=False,imagenet=
                     os.replace(temporary,checkpoint)
                 finally:
                     temporary.unlink(missing_ok=True)
-            print(f'[{label}] Epoch {epoch} complete '
-                  f'| validation Macro F1={score:.4f} '
+            if log_fn is not None:log_fn(row)
+            print(f'[{label}] Epoch {epoch}/{settings["max_epochs"]} complete '
+                  f'| train loss={row["train_loss"]:.4f} '
+                  f'| val loss={row["validation_loss"]:.4f} '
+                  f'| val accuracy={val_accuracy:.4f} '
+                  f'| val Macro F1={score:.4f} '
                   f'| best={best:.4f} at epoch {best_epoch} '
                   f'| elapsed={time.perf_counter()-started:.1f}s',
                   flush=True)
@@ -174,25 +183,28 @@ def fit_model(model,train,validation,settings,config,device,gray=False,imagenet=
 
 
 def fit_resnet_two_stage(model,train,validation,settings,device,resume=False,
-                         checkpoint_dir=None,progress_prefix=None):
+                         checkpoint_dir=None,progress_prefix=None,on_epoch=None):
     """Two-stage ImageNet fine-tuning; later incremental stages do not refreeze."""
     histories=[];selected=[]
     directory=Path(checkpoint_dir) if checkpoint_dir is not None else None
     prefix=progress_prefix or 'ResNet18'
+    batch_size=int(settings.get('progressive_batch_size',16))
     if not resume:
         for p in model.parameters():p.requires_grad=False
         for p in model.fc.parameters():p.requires_grad=True
         head_settings={**settings,'max_epochs':5,'patience':5}
-        head_cfg=dict(optimizer='adamw',learning_rate=.001,weight_decay=.0001,batch_size=16)
+        head_cfg=dict(optimizer='adamw',learning_rate=.001,weight_decay=.0001,batch_size=batch_size)
         model,h,info=fit_model(model,train,validation,head_settings,head_cfg,device,
                                imagenet=True,progress_prefix=f'{prefix} head-only',
                                epoch_checkpoint=(directory/'head_epoch.pt')
-                               if directory else None)
+                               if directory else None,
+                               log_fn=(lambda row: on_epoch(row,'head_only',int(row['epoch']),5))
+                               if on_epoch else None)
         h['stage']='head_only';histories.append(h)
         selected.append((info['best_validation_macro_f1'],
                          copy.deepcopy(model.state_dict()),'head_only'))
     for p in model.parameters():p.requires_grad=True
-    cfg=dict(optimizer='adamw',learning_rate=.0001,weight_decay=.0001,batch_size=16)
+    cfg=dict(optimizer='adamw',learning_rate=.0001,weight_decay=.0001,batch_size=batch_size)
     finetune_settings={**settings,'max_epochs':5 if resume else 20,
                        'patience':3 if resume else 5}
     model,h,info=fit_model(model,train,validation,finetune_settings,cfg,device,
@@ -200,7 +212,11 @@ def fit_resnet_two_stage(model,train,validation,settings,device,resume=False,
                            progress_prefix=f'{prefix} continued' if resume
                            else f'{prefix} fine-tuning',
                            epoch_checkpoint=(directory/'finetune_epoch.pt')
-                           if directory else None)
+                           if directory else None,
+                           log_fn=(lambda row: on_epoch(row,
+                                       'continued_update' if resume else 'full_finetune',
+                                       int(row['epoch'])+(0 if resume else 5),
+                                       5 if resume else 25)) if on_epoch else None)
     h['stage']='continued_update' if resume else 'full_finetune';histories.append(h)
     selected.append((info['best_validation_macro_f1'],
                      copy.deepcopy(model.state_dict()),h['stage'].iloc[0]))
