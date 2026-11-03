@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import math
 import time
+import hashlib
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -184,6 +185,8 @@ def run_progressive_temporal(manifest, settings, device, original_st_split_path)
     root.mkdir(parents=True, exist_ok=True)
     known, unseen = original_unseen_sources(manifest, original_st_split_path)
     overall_records, horizon_records = [], []
+    fingerprint = hashlib.sha256((manifest[['sample_id', 'source_key', 'frame_number']]\n        .sort_values('sample_id').to_csv(index=False) + str(sorted(unseen))\n        + str(settings['image_size']) + str(settings['seed'])).encode()).hexdigest()
+    print(f'Progressive study device: {device}; cache: {settings.get("cache_resized_rgb", False)}', flush=True)
     for regime in ('T', 'ST'):
         setup(settings['seed'])
         model = get_resnet(pretrained=True).to(device)
@@ -192,21 +195,37 @@ def run_progressive_temporal(manifest, settings, device, original_st_split_path)
             train, validation, future = chronological_checkpoint(
                 manifest, regime, coverage, known, unseen
             )
-            # The model is reused across checkpoints: progressive updating, not fresh starts.
-            model, history, selected = fit_resnet_two_stage(
-                model, train, validation, settings, device, resume=(step > 0)
-            )
             folder = root / regime / f'{int(coverage*100):02d}pct'
             folder.mkdir(parents=True, exist_ok=True)
-            history.to_csv(folder / 'training_history.csv', index=False)
-            torch.save(dict(
-                architecture='resnet18', state_dict=model.state_dict(),
-                regime=regime, coverage=coverage,
-                selected_validation=selected, training_recipe='progressive_two_stage',
-                seed=settings['seed'],
-            ), folder / 'checkpoint.pt')
+            final_checkpoint = folder / 'checkpoint.pt'
+            label = f'{regime} {int(coverage*100)}%'
+            print(f'[{label}] train={len(train)}, validation={len(validation)}, future={len(future)}', flush=True)
+            if final_checkpoint.is_file():
+                record = torch.load(final_checkpoint, map_location='cpu', weights_only=False)
+                if (record.get('fingerprint') != fingerprint or
+                    record.get('regime') != regime or record.get('coverage') != coverage):
+                    raise ValueError(f'Incompatible prior result at {final_checkpoint}; keep runs separate.')
+                model.load_state_dict(record['state_dict'])
+                selected = record['selected_validation']
+                print(f'[{label}] Resuming from saved completed stage.', flush=True)
+            else:
+                model, history, selected = fit_resnet_two_stage(
+                    model, train, validation, settings, device, resume=(step > 0),
+                    checkpoint_dir=folder, progress_prefix=label
+                )
+                history.to_csv(folder / 'training_history.csv', index=False)
+                torch.save(dict(
+                    architecture='resnet18', state_dict=model.cpu().state_dict(),
+                    regime=regime, coverage=coverage, fingerprint=fingerprint,
+                    selected_validation=selected, training_recipe='progressive_two_stage',
+                    seed=settings['seed'],
+                ), final_checkpoint)
+                for epoch_file in ('head_epoch.pt', 'finetune_epoch.pt'):
+                    (folder / epoch_file).unlink(missing_ok=True)
+                print(f'[{label}] Training checkpoint saved.', flush=True)
             model.to(device)
             inference_started = time.perf_counter()
+            print(f'[{label}] Predicting future frames...', flush=True)
             predictions = predict_frame_table(
                 model, future, settings, device, batch_size=16, imagenet=True
             ).merge(future[['sample_id','horizon_position','frame_position_percent']],
@@ -242,6 +261,11 @@ def run_progressive_temporal(manifest, settings, device, original_st_split_path)
                 end_to_end_frames_per_second=round(len(future) / max(inference_seconds, 1e-9), 2),
                 training_plus_evaluation_seconds=round(time.perf_counter()-started, 2),
             ))
+            print(f'[{label}] Future Macro F1={entire["macro_f1"]:.4f} | '
+                  f'matched final-10% Macro F1={matched["macro_f1"]:.4f}', flush=True)
+        pd.DataFrame([r for r in overall_records if r['regime']==regime]).to_csv(
+            root / f'{regime}_overall_results.csv', index=False
+        )
 
     overall=pd.DataFrame(overall_records)
     windows=pd.DataFrame(horizon_records)
@@ -257,6 +281,7 @@ def run_progressive_temporal(manifest, settings, device, original_st_split_path)
         model_family='ImageNet ResNet18',
         progressive=True, classification_not_future_event_prediction=True,
         actual_elapsed_time_known=False, online_learning=False,
+        protocol_fingerprint=fingerprint, lossless_cache=bool(settings.get('cache_resized_rgb',False)),
     ))
     plot_progressive_results(overall,windows,root/'figures')
     return overall,windows
