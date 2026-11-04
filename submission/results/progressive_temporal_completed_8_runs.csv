@@ -1,0 +1,9 @@
+run_number,regime,coverage_percent,n_train,n_validation,n_future,n_future_sources,future_macro_f1,future_flip_recall,false_negatives,false_positives,matched_macro_f1,matched_flip_recall,wandb_run_url
+1,T,25,579,119,2291,117,0.739814,0.572711,476,98,0.338274,0.070588,https://forge.coreweave.com/wandb/nickthegreek/monreader-progressive-temporal/runs/ef0bd109
+2,T,50,1208,271,1510,117,0.707684,0.483085,382,31,0.365469,0.052941,https://forge.coreweave.com/wandb/nickthegreek/monreader-progressive-temporal/runs/d3f7ebef
+3,T,75,1796,394,799,117,0.698346,0.473008,205,20,0.504572,0.211765,https://forge.coreweave.com/wandb/nickthegreek/monreader-progressive-temporal/runs/be3d8e8b
+4,T,90,2182,480,327,117,0.730368,0.529412,80,5,0.730368,0.529412,https://forge.coreweave.com/wandb/nickthegreek/monreader-progressive-temporal/runs/1f2d7368
+5,ST,25,460,95,467,24,0.661980,0.356098,132,0,0.346535,0.000000,https://forge.coreweave.com/wandb/nickthegreek/monreader-progressive-temporal/runs/482cb32b
+6,ST,50,962,216,309,24,0.695531,0.467153,73,12,0.297872,0.000000,https://forge.coreweave.com/wandb/nickthegreek/monreader-progressive-temporal/runs/e4c974c8
+7,ST,75,1431,313,164,24,0.628785,0.356164,47,6,0.445689,0.129032,https://forge.coreweave.com/wandb/nickthegreek/monreader-progressive-temporal/runs/a64aec3c
+8,ST,90,1737,381,66,24,0.653066,0.419355,18,3,0.653066,0.419355,https://forge.coreweave.com/wandb/nickthegreek/monreader-progressive-temporal/runs/4d6a8aa7

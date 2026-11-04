@@ -168,6 +168,26 @@ The **remaining-future** suffix changes in size and composition at each coverage
 | ST | [75%](https://forge.coreweave.com/wandb/nickthegreek/monreader-progressive-temporal/runs/a64aec3c) | 164 | 0.6288 | 0.3562 | 0.4457 | 0.1290 |
 | ST | [90%](https://forge.coreweave.com/wandb/nickthegreek/monreader-progressive-temporal/runs/4d6a8aa7) | 66 | 0.6531 | 0.4194 | 0.6531 | 0.4194 |
 
+## Progressive T (Temporal) — later frames from familiar sources
+
+**Historical benchmark (accepted, separate protocol).** Under the original chronological T partition, all **117 reconstructed recordings** contributed early frames for model development and later frames for testing: **2,387 training, 301 validation, and 301 held-out test frames**. The historical ResNet18 achieved **0.9091 Macro F1** on those 301 test frames; Scratch CNN achieved **0.8305**. ResNet18 recorded **27 false negatives and no false positives**. Its historical 95% **source-video bootstrap** Macro-F1 interval was approximately **[0.862, 0.947]**. This is an estimate for later frames of *known* sources, not generalization to new recordings.
+
+**Completed progressive T study (3 November 2026).** The supplementary ResNet18 was updated successively after 25%, 50%, 75% and 90% labelled chronological coverage. The *matched final-10%* test cohort contained **327 identical frames from the 117 familiar sources** at every checkpoint. Macro F1 on this fixed cohort was **0.3383 → 0.3655 → 0.5046 → 0.7304**, while flip recall was **0.0706 → 0.0529 → 0.2118 → 0.5294**. Despite the final improvement, at 90% coverage the classifier still missed **80 actual flip frames** (and produced 5 false positives) on these 327 frames.
+
+**Interpretation.** The matched-cohort improvement is a descriptive association with additional supervised training, not a controlled causal estimate. The changing remaining-future sets (2,291 down to 327 frames) must not be compared as identical test populations. Qualified three-position horizon windows showed lower scores further from the available prefix at 25% coverage (Macro F1 **0.9656** at positions 1–3 versus **0.4617** at positions 19–21), without establishing elapsed-time or real-world concept drift.
+
+## Progressive ST (Source + Temporal) — later frames from unseen sources
+
+**Historical benchmark (accepted, separate protocol).** The original ST split withheld **24 complete source recordings** from model training and validation. Across all 2,989 images, its roles were **1,904 training**, **475 validation**, **489 earlier frames from unseen sources marked context only**, and **121 later unseen-source test frames**. The 489 context frames were deliberately not used for fitting or selection, and were not part of the historical **late-only** score. On the 121 test frames, ResNet18 achieved **0.8772 Macro F1** (Scratch CNN **0.7906**), with **14 false negatives and zero false positives**. The historical 95% source-video bootstrap interval was approximately **[0.747, 0.972]**; uncertainty is substantial because the unseen test cohort is small.
+
+**Completed progressive ST study (3 November 2026).** A *different ResNet18 sequence* was updated from labelled early frames of **known** recordings only. The same **24 unseen recordings remained completely absent from both ST training and validation at all four checkpoints**. Their matched final-10% evaluation cohort comprised **66 identical frames** at every checkpoint. Across 25%, 50%, 75% and 90% training coverage, fixed-cohort Macro F1 was **0.3465 → 0.2979 → 0.4457 → 0.6531**; flip recall was **0.0000 → 0.0000 → 0.1290 → 0.4194**. At 90% coverage, the model still missed **18 of 31 actual flips** in the 66-frame cohort (and produced 3 false positives). The score did **not** increase monotonically.
+
+**Why the 489 frames remain protected.** At early progressive checkpoints, the *newly defined* ST evaluation suffix can score some images that were among the historical 489 earlier context-only frames; none ever enters model training or validation. This separate supplementary evaluation does **not** redefine the historical 121-frame ST test or replace its **0.8772** result. Later-frame order is reconstructed from filenames; no actual time intervals, prospective predictions, online learning or independent-environment guarantee is established.
+
+**Practical interpretation.** ST gives the more stringent *unseen-source* perspective, but the 66-frame matched suffix is too small to justify deployment claims or definitive cross-regime rankings. Missed page turns remain the principal operational concern. The T and ST progressive cohorts differ, so their scores must not be interpreted as the isolated causal effect of source novelty.
+
+The complete eight-run outcome table, per-checkpoint support counts, and W&B links are recorded in the [completed progressive results note](docs/PROGRESSIVE_TEMPORAL_FINAL_RESULTS_2026-11-03.md) and [committed eight-run summary](submission/results/progressive_temporal_completed_8_runs.csv).
+
 ### Illustrative results figures
 
 The following **two tracked SVG figures** are redrawn from the eight measured final-result records, not speculative curves or images from a pending run. They highlight **fixed-cohort comparisons within each regime**, rather than treating changing future populations as directly comparable.
@@ -208,7 +228,7 @@ Next priorities are broader testing on unseen recording sources, investigation o
 
 ## Reproducing the Project
 
-The five updated notebooks form an executable technical report covering data preparation, accepted historical model development, previously reported testing, and the completed supplementary progressive generalization study. The notebooks **display the accepted historical evidence by default**. The progressive study has already finished locally and can be resumed from compatible checkpoints; it does not need to be repeated merely to read this README. The former W&B and ResNet18 experiments are **not repeated automatically**; optional full reruns can be enabled explicitly and produce separately identified outputs. A W&B account is required only for an optional new Bayesian sweep.
+The five updated notebooks form an executable technical report covering data preparation, accepted historical model development, previously reported testing, and the completed supplementary progressive generalization study. The notebooks **display the accepted historical evidence by default**. The progressive study has already finished locally. Its eight-run outcome table is committed for review; new GPU/W&B runs are **opt-in**, not required to read or reproduce the report tables. The former W&B and ResNet18 experiments are **not repeated automatically**; optional full reruns can be enabled explicitly and produce separately identified outputs. A W&B account is required only for an optional new Bayesian sweep.
 
 1. Set up Python 3.11 or newer and install the dependencies:
    ```bash
@@ -216,37 +236,38 @@ The five updated notebooks form an executable technical report covering data pre
    ```
    Install the PyTorch build appropriate for your CPU or GPU if needed.
 2. [Download the original MonReader dataset](https://drive.google.com/file/d/1KDQBTbo5deKGCdVV_xIujscn5ImxW4dm/view?usp=sharing) and extract it into `data/raw/`, or set `MONREADER_DATA_ROOT` to the extracted dataset location.
-3. For the **default historical-report + progressive-study pathway**, W&B authentication **is required when** `log_progress_to_wandb=True` (the default for Notebook 04). Authenticate W&B in the same Python environment used by Jupyter, or disable progress logging explicitly if running without W&B. Historical reports can be viewed without retraining; optional full historical reruns have their own W&B settings.
-4. Run notebooks **01 → 02 → 03 → 04 → 05** from the project root. Notebook 01 generates the frozen dataset splits; 02 and 03 display historical results by default; Notebook 04 runs the **new** progressive T/ST experiment; and 05 synthesizes accepted historical and newly measured findings. New outputs are saved locally, while the original submitted results remain unchanged.
+3. **Default review mode needs no W&B authentication**: Notebooks 02–05 display the accepted historical results and the completed eight-run progressive summary. W&B authentication is required only for an explicitly enabled new Bayesian sweep or a new progressive GPU run with `RUN_NEW_PROGRESSIVE_TEMPORAL = True` and `log_progress_to_wandb = True`.
+4. Run notebooks **01 → 02 → 03 → 04 → 05** from the project root for the full dataset audit and research report. Notebook 01 requires the original images and reconstructs splits; Notebook 02 shows original W&B results; Notebook 03 shows original model/color comparisons; Notebook 04 shows the **already completed** T/ST eight-run summary and historical robustness; and Notebook 05 synthesizes the findings. The default review path does **not** start new W&B or model-training runs. To repeat progressive GPU training explicitly, set `RUN_NEW_PROGRESSIVE_TEMPORAL = True` in Notebook 04 and review checkpoint/credential requirements.
 
 **Evaluation metric:** Macro F1 is the primary measure used for hyperparameter optimization, checkpoint selection and held-out comparison.
 
 ## Repository Guide
 
-The project consists of five `updated_` research notebooks, reusable Python source code in `src/`, a `requirements.txt` environment specification, accepted historical results under `submission/results/`, and tracked research figures. The progressive T/ST study **has been executed locally**, and its measured outcomes are recorded in [the final results note](docs/PROGRESSIVE_TEMPORAL_FINAL_RESULTS_2026-11-03.md); two newly generated SVG figures are tracked under `figures/`, while full per-frame CSVs, original PNG plots and checkpoints remain under the local output directory. Downloaded images, trained model checkpoints, W&B logs and generated experiment outputs are kept separately from tracked project code.
+The project consists of five `updated_` research notebooks, reusable Python source code in `src/`, a `requirements.txt` environment specification, accepted historical results and the supplementary eight-run summary under `submission/results/`, and tracked research figures. The progressive T/ST study **has been executed locally**, and its measured outcomes are recorded in [the final results note](docs/PROGRESSIVE_TEMPORAL_FINAL_RESULTS_2026-11-03.md); two newly generated SVG figures are tracked under `figures/`, while full per-frame CSVs, original PNG plots and checkpoints remain under the local output directory. Downloaded images, trained model checkpoints, W&B logs and generated experiment outputs are kept separately from tracked project code.
 
 ### Notebook Guide
 
 | Notebook | Purpose |
 | --- | --- |
 | `updated_01_data_and_splits.ipynb` | Explore the dataset, reconstruct video sources and frame order, and create the O/S/T/ST evaluation partitions. |
-| `updated_02_cnn_selection.ipynb` | Train Scratch CNNs and perform Bayesian hyperparameter optimization using validation Macro F1. |
-| `updated_03_model_comparison.ipynb` | Fine-tune ResNet18, compare held-out performance and evaluate RGB versus grayscale. |
-| `updated_04_generalization_and_stress_tests.ipynb` | Quantify source-video uncertainty, analyze errors, and evaluate progressive T/ST coverage with future-horizon windows. |
+| `updated_02_cnn_selection.ipynb` | Display accepted Scratch CNN/W&B evidence; optionally launch four new Bayesian sweeps. |
+| `updated_03_model_comparison.ipynb` | Display historical ResNet18 and color-comparison results; optionally repeat model fitting. |
+| `updated_04_generalization_and_stress_tests.ipynb` | Review archived robustness findings and completed eight-run T/ST results; optionally recompute or rerun. |
 | `updated_05_final_analysis.ipynb` | Examine representative predictions using Grad-CAM and intermediate activations, and summarize findings. |
 
 ### Experiment tracking and reproducibility for the completed T/ST study
 
-Notebook `updated_04_generalization_and_stress_tests.ipynb` records the eight
-**new progressive temporal runs** in the separate W&B project
+Notebook `updated_04_generalization_and_stress_tests.ipynb` displays the archived eight
+**completed progressive temporal runs** and can optionally rerun them in the separate W&B project
 `monreader-progressive-temporal`. They are not the 120 historical W&B qualifying
 trials and do not modify their accepted results.
 
-Before running Notebook 04, use the `monreader-gpu` Jupyter kernel and authenticate
-Weights & Biases (`wandb login`) in that environment. The notebook defaults to
-`RUN_NEW_PROGRESSIVE_TEMPORAL=True`, `log_progress_to_wandb=True`, and a GPU
-batch size of 4 to accommodate an RTX 3050 Ti with 4 GB VRAM. Confirm that
-`torch.cuda.is_available()` returns `True` in **that kernel**.
+For report viewing, Notebook 04 defaults to `RUN_NEW_PROGRESSIVE_TEMPORAL = False` and
+reads `submission/results/progressive_temporal_completed_8_runs.csv`. It does not start GPU training or request a W&B session.
+Only if rerunning the completed study, use the `monreader-gpu` kernel, authenticate
+W&B (`wandb login`) in that environment, set `RUN_NEW_PROGRESSIVE_TEMPORAL = True`,
+and confirm `torch.cuda.is_available()` is `True`. The recorded rerun configuration
+uses `log_progress_to_wandb = True` and a GPU batch size of 4 for RTX 3050 Ti (4 GB).
 
 Each of T-25, T-50, T-75, T-90, ST-25, ST-50, ST-75, ST-90 has its own W&B run,
 listed in order as Run 1/8 through Run 8/8. Every *completed* training epoch
