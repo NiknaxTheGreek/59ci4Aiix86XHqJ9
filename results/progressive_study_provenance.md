@@ -74,4 +74,4 @@ The local `generated/outputs/progressive_temporal/` directory contains `overall_
 - [Run 7 — ST / 75%](https://forge.coreweave.com/wandb/nickthegreek/monreader-progressive-temporal/runs/a64aec3c)
 - [Run 8 — ST / 90%](https://forge.coreweave.com/wandb/nickthegreek/monreader-progressive-temporal/runs/4d6a8aa7)
 
-**Protocol boundary:** The separate V2 primary protocol requires a fixed bank of 20 scratch CNNs, train/test-only evaluation, exactly 20 epochs, and a 29-source ST environment cohort. These eight sequentially updated pretrained ResNet18 experiments do **not** satisfy or supersede that V2 programme. Completion here refers only to this supplementary progressive study.
+**Protocol boundary:** These eight sequentially updated ResNet18 experiments are a distinct, completed offline study. They do not redefine the original historical 121-frame ST result, establish automatic online learning, or supersede the accepted historical model comparisons.

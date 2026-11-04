@@ -46,5 +46,5 @@ def get_settings(root):
 
 def load_settings(root):
     p=Path(root)/'generated'/'experiment_settings.json'
-    if not p.exists():raise FileNotFoundError('Run Notebook 01 first: '+str(p))
+    if not p.exists(): return get_settings(root)  # Default archived-report mode is independent of Notebook 01
     return json.loads(p.read_text())
