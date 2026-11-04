@@ -216,19 +216,23 @@ This retrospective study uses reconstructed frame order, **not verified capture 
 
 **ResNet18 was the strongest model** across all four regimes, but its Macro F1 declined as source and temporal generalization became more demanding.
 
-The main practical limitation is not simply a lower score: under T and ST, errors were entirely false negatives and many occurred with high confidence. This means the classifier can miss genuine page turns without appearing uncertain.
+The central limitation is not simply a lower score: in the **historical** T and ST tests, every ResNet18 error was a false negative, often at high confidence. The **completed progressive** T/ST study likewise found persistent missed page turns: at the 90%-coverage checkpoint, the fixed final-10% test still had **80 false negatives in T** and **18 in ST**. These are different protocols and must not be presented as interchangeable scores.
 
-The model is promising for MonReader, but **should not yet be treated as deployment-ready without further testing on independent unseen recordings and targeted work to reduce confident false negatives**.
+The progressive fixed-cohort Macro F1 increased from **0.3383 to 0.7304 in T** and from **0.3465 to 0.6531 in ST** between the 25% and 90% checkpoints, but improvement was not uniformly monotonic. This supports further supervised-update research, **not** a causal claim that more training data alone produced the gains.
+
+**Recommendation:** ResNet18 remains the stronger *historical* reference model, while the supplementary temporal study illustrates the potential and limits of staged supervised updates. MonReader is **not yet deployment-ready** without independent recording tests, fewer missed flips, event-level annotations and real-device latency checks.
 
 ## Limitations and Next Steps
 
 The dataset is relatively small and comes from a limited number of reconstructed source recordings, so measured performance may not cover the full range of books, users, lighting conditions, camera angles, and page-turning styles encountered in practice.
 
-Next priorities are broader testing on unseen recording sources, investigation of high-confidence false negatives, and assessment of robustness when the recording conditions differ from those represented in the present dataset.
+The 117 reconstructed source recordings and their frame positions do not establish independent filming environments, capture timestamps or elapsed-time intervals. The progressive ST matched-final cohort contains only **66 frames across 24 withheld sources**, with no new source-cluster confidence interval; results from T and ST are not causally comparable across their different test populations.
+
+Next priorities are broader independent-recording tests, collection of actual timestamps and page-turn event annotations, targeted reduction of high-confidence false negatives, and real-device latency and memory measurements. The completed study **does not demonstrate automatic online learning, future-event forecasting or a defensible deployment retraining schedule**.
 
 ## Reproducing the Project
 
-The five updated notebooks form an executable technical report covering data preparation, accepted historical model development, previously reported testing, and the completed supplementary progressive generalization study. The notebooks **display the accepted historical evidence by default**. The progressive study has already finished locally. Its eight-run outcome table is committed for review; new GPU/W&B runs are **opt-in**, not required to read or reproduce the report tables. The former W&B and ResNet18 experiments are **not repeated automatically**; optional full reruns can be enabled explicitly and produce separately identified outputs. A W&B account is required only for an optional new Bayesian sweep.
+The five updated notebooks form an executable technical report covering data preparation, accepted historical model development, previously reported testing, and the completed supplementary progressive generalization study. The notebooks **display the accepted historical evidence by default**. The progressive study has already finished locally. Its eight-run outcome table is committed for review; new GPU/W&B runs are **opt-in**, not required to read or reproduce the report tables. The former W&B and ResNet18 experiments are **not repeated automatically**; optional full reruns can be enabled explicitly and produce separately identified outputs. A W&B account is required only when explicitly launching an optional new Bayesian sweep or an authenticated progressive GPU rerun.
 
 1. Set up Python 3.11 or newer and install the dependencies:
    ```bash

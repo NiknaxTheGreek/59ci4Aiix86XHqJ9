@@ -16,3 +16,5 @@ jobs:
           python-version: "3.11"
       - name: Check tracked source and notebook syntax
         run: python scripts/check_static.py
+      - name: Verify T/ST completed-report evidence consistency
+        run: python scripts/verify_progressive_report.py
