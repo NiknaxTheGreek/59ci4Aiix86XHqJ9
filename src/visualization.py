@@ -4,30 +4,73 @@ from .models import load_resnet_checkpoint
 
 
 def plot_regime_examples(splits, filename, seed=42):
-    """Legible representative frames sampled from the actual assigned partitions."""
-    rng=random.Random(seed)
-    roles={'O':['train','validation','test','train'],
-           'S':['train','validation','test','test'],
-           'T':['train','validation','test','test'],
-           'ST':['train','validation','context_unseen_early','test']}
-    fig,axes=plt.subplots(4,4,figsize=(16,15),constrained_layout=True)
-    for i,regime in enumerate(REGIMES):
-        frame=splits[regime]
-        for j,role in enumerate(roles[regime]):
-            subset=frame[frame.role==role]
-            ax=axes[i,j]
-            if len(subset):
-                row=subset.iloc[rng.randrange(len(subset))]
-                with Image.open(row.path) as im:ax.imshow(im.convert('RGB'))
-                ax.set_title(f'{role.replace("_"," ")}\nVideo {row.video_id} / frame {row.frame_number}',fontsize=11,pad=14)
-            else:
-                ax.text(.5,.5,'No examples',ha='center',va='center',transform=ax.transAxes)
-            ax.set_xticks([]);ax.set_yticks([])
-            for spine in ax.spines.values():spine.set_visible(True);spine.set_linewidth(.8)
-        axes[i,0].set_ylabel(regime,rotation=0,labelpad=32,fontweight='bold',fontsize=14,va='center')
-    fig.suptitle('Evaluation regimes — representative video frames',fontsize=17,fontweight='bold')
-    filename=Path(filename);filename.parent.mkdir(parents=True,exist_ok=True)
-    fig.savefig(filename,dpi=145,bbox_inches='tight');plt.close(fig)
+    """Generate an evidence-grounded O/S/T/ST partition schematic.
+
+    Counts come from actual assigned split tables, not copied or illustrative
+    photographs. In ST, withheld-source early frames are context only; they
+    never enter model development or the historical late-only test.
+    """
+    from matplotlib.patches import FancyBboxPatch
+
+    names = {
+        'O': 'Original (supplied split)',
+        'S': 'Source-safe (unseen recordings)',
+        'T': 'Temporal (later familiar frames)',
+        'ST': 'Source + temporal (later unseen frames)',
+    }
+    palette = {
+        'train': '#e1edfb',
+        'validation': '#e0f2ed',
+        'context_unseen_early': '#fff0d8',
+        'test': '#ffe5d8',
+    }
+    fig, ax = plt.subplots(figsize=(15.5, 8.5))
+    fig.patch.set_facecolor('white')
+    ax.set_xlim(0, 16)
+    ax.set_ylim(0, 5.3)
+    ax.axis('off')
+    ax.text(.4, 5.04, 'How the four MonReader evaluations differ',
+            fontsize=21, fontweight='bold', color='#17283e')
+    ax.text(.4, 4.72, 'Actual train / validation / context-only / test counts',
+            fontsize=11, color='#617089')
+
+    for i, regime in enumerate(REGIMES):
+        y = 4.18 - i * 1.12
+        split = splits[regime]
+        vc = split.role.value_counts()
+        ax.text(.38, y + .18, regime, fontsize=23, fontweight='bold',
+                va='center', color='#17283e')
+        ax.text(1.14, y + .18, names[regime], fontsize=12, va='center',
+                fontweight='bold', color='#17283e')
+        roles = (['train', 'validation', 'context_unseen_early', 'test']
+                 if regime == 'ST' else ['train', 'validation', 'test'])
+        x_positions = ([6.4, 8.74, 11.08, 13.42] if regime == 'ST'
+                       else [6.4, 9.1, 12.1])
+        widths = ([2.17] * 4 if regime == 'ST' else [2.45, 2.75, 2.95])
+        for j, (role, x, w) in enumerate(zip(roles, x_positions, widths)):
+            ax.add_patch(FancyBboxPatch(
+                (x, y - .32), w, .78, boxstyle='round,pad=0.04',
+                facecolor=palette[role], edgecolor='#c9d5e0'))
+            title = 'CONTEXT ONLY' if role == 'context_unseen_early' else role.upper()
+            ax.text(x + .13, y + .23, title, fontsize=9, fontweight='bold')
+            ax.text(x + .13, y - .08, f'{int(vc.get(role, 0)):,}',
+                    fontsize=20, fontweight='bold', color='#17283e')
+        if regime == 'ST':
+            unseen = split[split.role.isin(['context_unseen_early', 'test'])]
+            n_sources = unseen.source_key.nunique()
+            ax.text(6.4, y - .55, f'{n_sources} withheld sources: '
+                    'earlier unseen frames are not fitted or scored in '
+                    'the historical late-only test',
+                    fontsize=9, color='#766140')
+        ax.plot([.42, 15.7], [y - .78, y - .78], color='#e5eaf0', lw=.9)
+
+    ax.text(.45, .10, 'ST: only the later approximately 20% of each withheld '
+            'recording is scored. Earlier withheld frames are context only.',
+            fontsize=10, color='#52647b')
+    filename = Path(filename)
+    filename.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(filename, dpi=170, bbox_inches='tight')
+    plt.close(fig)
     return filename
 
 def plot_model_comparison(results,out):
