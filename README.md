@@ -62,8 +62,8 @@ A **separate, completed eight-run ResNet18 study (3 November 2026)** updated the
 
 | Fixed late-frame cohort | 25% | 50% | 75% | 90% | Missed-flip rate at 90% |
 |---|---:|---:|---:|---:|---:|
-| T Macro F1 | 0.338 | 0.365 | 0.505 | **0.730** | **47.1%** (80/170) |
-| ST Macro F1 | 0.347 | 0.298 | 0.446 | **0.653** | **58.1%** (18/31) |
+| T Macro F1 | 0.338 | 0.365 | 0.505 | **0.730** | **47.1%** |
+| ST Macro F1 | 0.347 | 0.298 | 0.446 | **0.653** | **58.1%** |
 
 **Missed-flip rate** = false negatives ÷ actual `flip` frames in the fixed late-frame cohort (equivalently, 1 − flip recall). These proportions describe **missed flip frames, not missed page-turn events**; T and ST use different evaluation cohorts.
 
