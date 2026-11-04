@@ -11,8 +11,8 @@ from decimal import Decimal
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TABLE = ROOT / "submission/results/progressive_temporal_completed_8_runs.csv"
-EVIDENCE = ROOT / "docs/PROGRESSIVE_TEMPORAL_FINAL_RESULTS_2026-11-03.md"
+TABLE = ROOT / "results/progressive_temporal_completed_8_runs.csv"
+EVIDENCE = ROOT / "results/progressive_study_provenance.md"
 README = ROOT / "README.md"
 NB_NAMES = [
     "updated_02_cnn_selection.ipynb",
@@ -71,12 +71,12 @@ def verify():
             raise AssertionError(f"Run {idx}: W&B evidence URL missing or changed")
 
     readme = README.read_text(encoding="utf-8")
-    for headline in ("## Progressive T (Temporal)", "## Progressive ST (Source + Temporal)"):
+    for headline in ("## Does more labelled history improve page-flip detection", "## Business decision and next steps"):
         if headline not in readme:
             raise AssertionError(f"Missing README section: {headline}")
     for path in [
-        ROOT / "figures/progressive_matched_macro_f1.svg",
-        ROOT / "figures/progressive_matched_flip_recall.svg",
+        ROOT / "figures/labelled_history_late_frame_macro_f1.svg",
+        ROOT / "figures/evaluation_regimes.svg",
     ]:
         if not path.exists():
             raise AssertionError(f"Missing measured progressive figure {path}")

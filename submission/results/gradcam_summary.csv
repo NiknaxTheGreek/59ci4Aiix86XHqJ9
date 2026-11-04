@@ -1,6 +1,0 @@
-<PARSED TEXT FOR SHEET: 1 / 1 TABS
-TAB NAME: 31_gradcam_summary.csv>index,regime,n_cases,n_degenerate_cam,mean_cam_activation,mean_fraction_cam_ge_0_50,mean_fraction_cam_ge_0_75,mean_fraction_cam_ge_0_90,mean_center_of_mass_x_fraction,mean_center_of_mass_y_fraction,all_predictions_match
-0,O,5,0,0.237532,0.192136,0.066554,0.01775,0.551928,0.511581,True
-1,S,6,0,0.251104,0.223533,0.072734,0.016273,0.594864,0.385415,True
-2,T,5,0,0.235299,0.212819,0.084343,0.023374,0.522821,0.452115,True
-3,ST,5,0,0.207746,0.161691,0.059893,0.015039,0.579433,0.530912,True

@@ -1,20 +1,20 @@
-name: MonReader static quality checks
+name: MonReader reproducibility checks
 on:
   push:
-    branches: [proofread]
+    branches: [main, proofread]
   pull_request:
     branches: [main]
+permissions:
+  contents: read
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out commit
-        uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Check tracked source and notebook syntax
+      - name: Check notebook and Python syntax, README and figures
         run: python scripts/check_static.py
-      - name: Verify T/ST completed-report evidence consistency
+      - name: Verify accepted eight-run results and notebook gates
         run: python scripts/verify_progressive_report.py

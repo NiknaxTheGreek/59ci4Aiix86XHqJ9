@@ -5,14 +5,9 @@ venv/
 .env
 .ipynb_checkpoints/
 data/
-*.zip
-outputs/*
-!outputs/baselines/
-!outputs/baselines/**
 wandb/
-
-# Fresh notebook executions
-/generated/
+generated/
+*.zip
 *.pt
 *.pth
 *.onnx

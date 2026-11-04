@@ -1,6 +1,0 @@
-<PARSED TEXT FOR SHEET: 1 / 1 TABS
-TAB NAME: 11_final_model_family_reference.csv>index,regime,scratch_macro_f1,resnet18_macro_f1,delta_macro_f1_resnet_minus_scratch
-0,O,0.989942,0.994969,0.005028
-1,S,0.440011,0.958387,0.518376
-2,T,0.830497,0.90914,0.078642
-3,ST,0.790585,0.877246,0.086661

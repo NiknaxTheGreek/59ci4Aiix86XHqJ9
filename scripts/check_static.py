@@ -19,9 +19,11 @@ MODULES = [
     "src/visualization.py", "src/temporal.py",
 ]
 FIGURES = [
-    "figures/evaluation_regime_examples.jpg",
-    "figures/model_comparison.svg",
+    "figures/evaluation_regimes.svg",
+    "figures/historical_performance_uncertainty.svg",
     "figures/rgb_vs_grayscale_examples.png",
+    "figures/failure_analysis.svg",
+    "figures/labelled_history_late_frame_macro_f1.svg",
     "figures/resnet18_gradcam_4x4.jpg",
 ]
 
@@ -49,6 +51,11 @@ def main():
         except (OSError, ValueError, SyntaxError, AssertionError) as exc:
             failures.append(f"{rel}: {exc}")
 
+    for rel in NOTEBOOKS:
+        nb=json.loads((ROOT/rel).read_text(encoding="utf-8"))
+        text="\n".join("".join(cell["source"]) for cell in nb["cells"])
+        if "submission/results" in text or "submission'/'results" in text:
+            failures.append(f"Old result directory referenced: {rel}")
     for rel in FIGURES:
         if not (ROOT / rel).is_file():
             failures.append(f"Missing published figure: {rel}")
